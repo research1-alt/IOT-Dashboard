@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Device } from '../types';
 import { SearchIcon, MapPinIcon, DeviceIcon } from './Icons';
@@ -10,8 +9,8 @@ const statusColors = {
     'Maintenance': 'bg-yellow-500',
 };
 
-const DeviceItem: React.FC<{ device: Device }> = ({ device }) => (
-    <div className="p-4 border-b border-gray-200 hover:bg-gray-50 cursor-pointer">
+const DeviceItem: React.FC<{ device: Device; onSelect: (device: Device) => void }> = ({ device, onSelect }) => (
+    <button onClick={() => onSelect(device)} className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors duration-150">
         <div className="flex justify-between items-center mb-1">
             <p className="font-bold text-gray-800">{device.id}</p>
             <div className="flex items-center space-x-2">
@@ -23,14 +22,15 @@ const DeviceItem: React.FC<{ device: Device }> = ({ device }) => (
             <MapPinIcon className="w-4 h-4 mr-1"/>
             <span>{device.location}</span>
         </div>
-    </div>
+    </button>
 );
 
 interface DevicePanelProps {
     devices: Device[];
+    onSelectDevice: (device: Device) => void;
 }
 
-const DevicePanel: React.FC<DevicePanelProps> = ({ devices }) => {
+const DevicePanel: React.FC<DevicePanelProps> = ({ devices, onSelectDevice }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredDevices = devices.filter(device => 
@@ -57,7 +57,7 @@ const DevicePanel: React.FC<DevicePanelProps> = ({ devices }) => {
             <div className="flex-1 overflow-y-auto">
                  {devices.length > 0 ? (
                     filteredDevices.length > 0 ? (
-                        filteredDevices.map(device => <DeviceItem key={device.id} device={device} />)
+                        filteredDevices.map(device => <DeviceItem key={device.id} device={device} onSelect={onSelectDevice} />)
                     ) : (
                         <div className="p-6 text-center text-gray-500">
                             <p>No devices match your search.</p>

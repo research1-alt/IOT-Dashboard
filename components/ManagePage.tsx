@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import DeviceManagementPage from './DeviceManagementPage';
 import MemberManagement from './MemberManagement';
@@ -10,6 +11,7 @@ interface ManagePageProps {
     devices: Device[];
     members: Member[];
     onAddDevice: (deviceId: string) => void;
+    onUpdateDeviceDetails: (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => void;
     onAttachLog: (deviceId: string, content: string) => void;
     onAddMember: (name: string, email: string, role: UserRole) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
@@ -75,6 +77,7 @@ const ManagePage: React.FC<ManagePageProps> = (props) => {
                         onAddMember={props.onAddMember}
                         onUpdateMemberRole={props.onUpdateMemberRole}
                         onUpdateMemberAssignments={props.onUpdateMemberAssignments}
+                        onUpdateDeviceDetails={props.onUpdateDeviceDetails}
                     />
                 )}
             </div>

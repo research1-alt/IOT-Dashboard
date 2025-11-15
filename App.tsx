@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
@@ -119,6 +120,16 @@ const App: React.FC = () => {
             setDevices(prev => [...prev, newDevice]);
         }
     };
+    
+    const handleUpdateDeviceDetails = (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => {
+        setDevices(prevDevices => 
+            prevDevices.map(d => 
+                d.id === deviceId 
+                    ? { ...d, ...details, lastUpdated: new Date().toLocaleString() } 
+                    : d
+            )
+        );
+    };
 
     const handleAttachLog = (deviceId: string, content: string) => {
         setDevices(prevDevices => 
@@ -180,6 +191,7 @@ const App: React.FC = () => {
     }
     
     if (!profileSelected) {
+        // Fix: Pass the `handleLogout` function to the `onLogout` prop. `onLogout` was not defined in this scope.
         return <ProfileSelectionPage currentUser={currentUser} onProfileSelect={handleProfileSelect} onLogout={handleLogout} />;
     }
 
@@ -191,6 +203,7 @@ const App: React.FC = () => {
             devices={devices}
             members={members}
             onAddDevice={handleAddDevice}
+            onUpdateDeviceDetails={handleUpdateDeviceDetails}
             onAttachLog={handleAttachLog}
             onAddMember={handleAddMember}
             onUpdateMemberRole={handleUpdateMemberRole}

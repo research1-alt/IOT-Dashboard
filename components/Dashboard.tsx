@@ -10,6 +10,8 @@ import DevicePanel from './DevicePanel';
 import ManagePage from './ManagePage';
 import ReportsPage from './ReportsPage';
 import BillingPage from './BillingPage';
+import DeviceDetailView from './DeviceDetailView';
+import LiveVehicleDataView from './LiveVehicleDataView';
 import { ConverterPage } from './ConverterPage';
 import { TotalDevicesIcon, OnlineDevicesIcon, DistanceIcon, AlertsIcon } from './Icons';
 import { Device, NavView, Member, UserRole } from '../types';
@@ -21,6 +23,7 @@ interface DashboardProps {
     devices: Device[];
     members: Member[];
     onAddDevice: (deviceId: string) => void;
+    onUpdateDeviceDetails: (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => void;
     onAttachLog: (deviceId: string, content: string) => void;
     onAddMember: (name: string, email: string, role: UserRole) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
@@ -30,10 +33,20 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = (props) => {
     const { currentUser, onLogout, onChangeProfile, devices, members } = props;
     const [activeView, setActiveView] = useState<NavView>('dashboard');
+    const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+    const [showLiveData, setShowLiveData] = useState(false);
+
 
     const handleNavigate = (view: NavView) => {
+        setSelectedDevice(null); // Deselect device when navigating away
+        setShowLiveData(false);
         setActiveView(view);
     };
+
+    const handleSelectDevice = (device: Device) => {
+        setShowLiveData(false);
+        setSelectedDevice(device);
+    }
 
     const visibleDevices = (currentUser.role === 'Admin')
         ? devices 
@@ -71,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     ];
 
     const viewTitles: { [key in NavView]: string } = {
-        dashboard: 'Dashboard',
+        dashboard: selectedDevice ? (showLiveData ? `Live Data: ${selectedDevice.id}` : `Device Details: ${selectedDevice.id}`) : 'Dashboard',
         manage: 'Management Hub',
         reports: 'Reports',
         converter: 'CAN Log Decoder',
@@ -82,6 +95,20 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     const renderContent = () => {
         switch (activeView) {
             case 'dashboard':
+                 if (selectedDevice) {
+                    return showLiveData ? (
+                        <LiveVehicleDataView 
+                            device={selectedDevice} 
+                            onBack={() => setShowLiveData(false)} 
+                        />
+                    ) : (
+                        <DeviceDetailView 
+                            device={selectedDevice} 
+                            onBack={() => setSelectedDevice(null)} 
+                            onViewLiveData={() => setShowLiveData(true)}
+                        />
+                    );
+                }
                 return (
                     <main className="flex-1 flex flex-col p-6 lg:p-8 space-y-6 overflow-y-auto">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -90,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                             ))}
                         </div>
                         <div className="flex-1 grid grid-cols-1 lg:grid-cols-[340px_1fr_340px] gap-6">
-                            <DevicePanel devices={visibleDevices} />
+                            <DevicePanel devices={visibleDevices} onSelectDevice={handleSelectDevice} />
                             <Map />
                             <div className="bg-card rounded-lg shadow-sm flex flex-col overflow-hidden">
                                <div className="p-4 border-b border-gray-200"><h3 className="text-xl font-semibold">Fleet Overview</h3></div>
@@ -114,6 +141,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                         devices={visibleDevices} 
                         members={members}
                         onAddDevice={props.onAddDevice}
+                        onUpdateDeviceDetails={props.onUpdateDeviceDetails}
                         onAttachLog={props.onAttachLog}
                         onAddMember={props.onAddMember}
                         onUpdateMemberRole={props.onUpdateMemberRole}

@@ -26,7 +26,22 @@ export interface Device {
   status: 'Driving' | 'Parked' | 'Offline' | 'Maintenance';
   location: string;
   logFileContent?: string; // Content of the attached CAN log file
+  // New properties for detail view
+  ownerName?: string;
+  vin?: string;
+  registrationNo?: string;
+  chassisNo?: string;
+  batteryUID?: string;
+  vehicleModel?: string;
+  manufacturingYear?: number;
+  fleet?: string;
+  locationOfOrigin?: string;
+  lastUpdated?: string;
+  canTimestamp?: string;
+  gpsTimestamp?: string;
+  imageUrl?: string;
 }
+
 
 export interface DecodingFile {
   name: string;

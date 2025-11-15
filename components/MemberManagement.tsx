@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Device, Member, UserRole } from '../types';
-import { MailIcon, UserCircleIcon } from './Icons';
+import { MailIcon, UserCircleIcon, CheckCircleIcon } from './Icons';
 
 // --- PROPS INTERFACE ---
 interface MemberManagementProps {
@@ -11,6 +11,7 @@ interface MemberManagementProps {
     onAddMember: (name: string, email: string, role: UserRole) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
     onUpdateMemberAssignments: (memberId: string, assignedDevices: string[]) => void;
+    onUpdateDeviceDetails: (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => void;
 }
 
 // Roles that can be assigned by an Admin. 'Admin' is excluded.
@@ -22,6 +23,98 @@ const assignableRoles: UserRole[] = [
     'Customer',
 ];
 
+// --- HELPER COMPONENT (Moved outside) ---
+// This is defined outside the modal component to prevent it from being re-created on every render,
+// which was causing the inputs to lose focus and become uneditable.
+const DeviceDetailFormInput: React.FC<{
+    label: string;
+    name: string;
+    value: string | number;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    type?: string;
+    fullWidth?: boolean;
+}> = ({ label, name, value, onChange, type = 'text', fullWidth = false }) => (
+    <div className={fullWidth ? 'md:col-span-2' : ''}>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+        <input
+            type={type}
+            name={name}
+            id={name}
+            value={value}
+            onChange={onChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm bg-white text-gray-900 placeholder-gray-400"
+        />
+    </div>
+);
+
+
+// --- HELPER: EDIT DEVICE DETAILS MODAL ---
+const EditDeviceDetailsModal: React.FC<{
+    device: Device;
+    onClose: () => void;
+    onSave: (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => void;
+}> = ({ device, onClose, onSave }) => {
+    const [formState, setFormState] = useState({
+        ownerName: device.ownerName || '',
+        vin: device.vin || '',
+        registrationNo: device.registrationNo || '',
+        chassisNo: device.chassisNo || '',
+        batteryUID: device.batteryUID || '',
+        vehicleModel: device.vehicleModel || '',
+        manufacturingYear: device.manufacturingYear || new Date().getFullYear(),
+        fleet: device.fleet || '',
+        locationOfOrigin: device.locationOfOrigin || '',
+        imageUrl: device.imageUrl || 'https://i.imgur.com/eB4BCi3.png',
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value, type } = e.target;
+        setFormState(prev => ({
+            ...prev,
+            [name]: type === 'number' ? parseInt(value, 10) || 0 : value,
+        }));
+    };
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(device.id, formState);
+    };
+
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [onClose]);
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" aria-modal="true">
+            <form onSubmit={handleSave} className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all">
+                <div className="p-6 border-b">
+                    <h3 className="text-lg font-bold text-gray-900">Edit Details for {device.id}</h3>
+                </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <DeviceDetailFormInput label="Owner Name" name="ownerName" value={formState.ownerName} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Vehicle Model" name="vehicleModel" value={formState.vehicleModel} onChange={handleChange} />
+                        <DeviceDetailFormInput label="VIN No." name="vin" value={formState.vin} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Registration No." name="registrationNo" value={formState.registrationNo} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Chassis No." name="chassisNo" value={formState.chassisNo} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Battery UID" name="batteryUID" value={formState.batteryUID} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Fleet" name="fleet" value={formState.fleet} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Location of Origin" name="locationOfOrigin" value={formState.locationOfOrigin} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Manufacturing Year" name="manufacturingYear" type="number" value={formState.manufacturingYear} onChange={handleChange} />
+                        <DeviceDetailFormInput label="Image URL" name="imageUrl" value={formState.imageUrl} onChange={handleChange} fullWidth/>
+                    </div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-primary-600 text-white font-semibold rounded-md hover:bg-primary-700">Save Details</button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 
 // --- HELPER: ASSIGN DEVICES MODAL ---
 const AssignDevicesModal: React.FC<{
@@ -29,17 +122,13 @@ const AssignDevicesModal: React.FC<{
     allDevices: Device[];
     onClose: () => void;
     onSave: (memberId: string, assignedDeviceIds: string[]) => void;
-}> = ({ member, allDevices, onClose, onSave }) => {
+    onEditDeviceDetails: (device: Device) => void;
+}> = ({ member, allDevices, onClose, onSave, onEditDeviceDetails }) => {
     const [selectedDevices, setSelectedDevices] = useState<Set<string>>(new Set(member.assignedDevices));
-    const hasExistingAssignments = member.assignedDevices.length > 0;
 
     const handleCheckboxChange = (deviceId: string) => {
         const newSelection = new Set(selectedDevices);
-        if (newSelection.has(deviceId)) {
-            newSelection.delete(deviceId);
-        } else {
-            newSelection.add(deviceId);
-        }
+        newSelection.has(deviceId) ? newSelection.delete(deviceId) : newSelection.add(deviceId);
         setSelectedDevices(newSelection);
     };
 
@@ -49,35 +138,39 @@ const AssignDevicesModal: React.FC<{
     };
 
     useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
+        const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
     }, [onClose]);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" aria-modal="true">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4" aria-modal="true">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
                 <div className="p-6 border-b">
-                    <h3 className="text-lg font-bold text-gray-900">
-                        {hasExistingAssignments ? 'Edit Device Assignments for' : 'Assign Devices to'} {member.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">Select the devices this member can access.</p>
+                    <h3 className="text-lg font-bold text-gray-900">Assign Devices to {member.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">Select devices and edit their details as needed.</p>
                 </div>
                 <div className="p-6 max-h-[60vh] overflow-y-auto">
                     {allDevices.length > 0 ? (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {allDevices.map(device => (
-                                <label key={device.id} className="flex items-center p-3 rounded-md hover:bg-gray-100 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedDevices.has(device.id)}
-                                        onChange={() => handleCheckboxChange(device.id)}
-                                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                    />
-                                    <span className="ml-3 text-sm font-medium text-gray-800">{device.id}</span>
-                                </label>
+                                <div key={device.id} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
+                                    <label className="flex items-center cursor-pointer flex-1">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedDevices.has(device.id)}
+                                            onChange={() => handleCheckboxChange(device.id)}
+                                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-800">{device.id}</span>
+                                    </label>
+                                    <button 
+                                        onClick={() => onEditDeviceDetails(device)} 
+                                        className="text-sm text-primary-600 hover:text-primary-800 font-medium px-2 py-1 rounded hover:bg-primary-100 transition-colors"
+                                    >
+                                        Edit Details
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     ) : (
@@ -87,7 +180,7 @@ const AssignDevicesModal: React.FC<{
                 <div className="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
                     <button type="button" onClick={onClose} className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
                     <button type="button" onClick={handleSave} className="px-4 py-2 bg-primary-600 text-white font-semibold rounded-md hover:bg-primary-700">
-                        {hasExistingAssignments ? 'Save Changes' : 'Save Assignments'}
+                        Save Assignments
                     </button>
                 </div>
             </div>
@@ -97,12 +190,14 @@ const AssignDevicesModal: React.FC<{
 
 
 // --- MAIN COMPONENT ---
-const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, onAddMember, onUpdateMemberRole, onUpdateMemberAssignments }) => {
+const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, onAddMember, onUpdateMemberRole, onUpdateMemberAssignments, onUpdateDeviceDetails }) => {
     const [newMemberName, setNewMemberName] = useState('');
     const [newMemberEmail, setNewMemberEmail] = useState('');
     const [newMemberRole, setNewMemberRole] = useState<UserRole>('Customer');
     const [error, setError] = useState('');
-    const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
+    const [memberToAssign, setMemberToAssign] = useState<Member | null>(null);
+    const [deviceToEdit, setDeviceToEdit] = useState<Device | null>(null);
+    const [showSaveSuccess, setShowSaveSuccess] = useState(false);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -119,14 +214,41 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, o
         setNewMemberRole('Customer');
     };
 
+    const handleSaveDeviceDetails = (deviceId: string, details: Partial<Omit<Device, 'id' | 'status'>>) => {
+        onUpdateDeviceDetails(deviceId, details);
+        setDeviceToEdit(null); // Close the details modal upon saving
+        setShowSaveSuccess(true);
+        setTimeout(() => setShowSaveSuccess(false), 3000);
+    };
+
     return (
         <>
-            {memberToEdit && (
+            {showSaveSuccess && (
+                <div className="fixed top-24 right-8 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-lg z-50 flex items-center" role="alert">
+                    <CheckCircleIcon className="w-6 h-6 mr-3"/>
+                    <div>
+                        <p className="font-bold">Success!</p>
+                        <p className="text-sm">Device details have been saved.</p>
+                    </div>
+                </div>
+            )}
+
+            {memberToAssign && (
                 <AssignDevicesModal 
-                    member={memberToEdit} 
+                    member={memberToAssign} 
                     allDevices={devices} 
-                    onClose={() => setMemberToEdit(null)} 
+                    onClose={() => setMemberToAssign(null)} 
                     onSave={onUpdateMemberAssignments} 
+                    onEditDeviceDetails={setDeviceToEdit}
+                />
+            )}
+            
+            {deviceToEdit && (
+                 <EditDeviceDetailsModal
+                    key={deviceToEdit.id}
+                    device={deviceToEdit}
+                    onClose={() => setDeviceToEdit(null)}
+                    onSave={handleSaveDeviceDetails}
                 />
             )}
 
@@ -192,7 +314,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, o
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{member.role === 'Admin' ? 'All' : member.assignedDevices.length}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         {member.role !== 'Admin' && (
-                                            <button onClick={() => setMemberToEdit(member)} className="text-primary-600 hover:text-primary-900">
+                                            <button onClick={() => setMemberToAssign(member)} className="text-primary-600 hover:text-primary-900">
                                                 {member.assignedDevices.length > 0 ? 'Edit Assigned Devices' : 'Assign Devices'}
                                             </button>
                                         )}
