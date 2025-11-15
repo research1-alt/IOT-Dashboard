@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { FileUploadIcon, SparklesIcon, DownloadIcon } from './Icons';
+import { FileUploadIcon, DownloadIcon } from './Icons';
 import { parsePcanLog } from '../google-service/can-parser';
 import { decodeCanData } from '../google-service/decoder';
-import { analyzeWithGemini } from '../google-service/gemini-service';
 import { parseDbc } from '../google-service/matrix-parser';
 import { defaultDbcContent } from '../google-service/default-matrix';
 
@@ -12,9 +11,6 @@ export const ConverterPage: React.FC = () => {
     const [error, setError] = useState('');
     const [decodedCsv, setDecodedCsv] = useState<string | null>(null);
     const [decodedLines, setDecodedLines] = useState(0);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysisResult, setAnalysisResult] = useState<string | null>(null);
-    const [analysisError, setAnalysisError] = useState('');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -23,8 +19,6 @@ export const ConverterPage: React.FC = () => {
         setDecodedCsv(null);
         setDecodedLines(0);
         setError('');
-        setAnalysisResult(null);
-        setAnalysisError('');
 
         const isLog = ['.log', '.txt', '.trc'].some(ext => file.name.toLowerCase().endsWith(ext));
 
@@ -46,8 +40,6 @@ export const ConverterPage: React.FC = () => {
         setError('');
         setDecodedCsv(null);
         setDecodedLines(0);
-        setAnalysisResult(null);
-        setAnalysisError('');
 
         setTimeout(async () => {
             try {
@@ -96,42 +88,6 @@ export const ConverterPage: React.FC = () => {
         document.body.removeChild(link);
     };
 
-    const handleAnalyze = async () => {
-        if (!decodedCsv) {
-            setAnalysisError('No decoded data available to analyze.');
-            return;
-        }
-        
-        // API Key check to ensure Gemini can be called.
-        // @ts-ignore - aistudio is provided by the execution environment
-        let hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            // @ts-ignore
-            await window.aistudio.openSelectKey();
-            // @ts-ignore
-            hasKey = await window.aistudio.hasSelectedApiKey(); // Re-check after user interaction
-        }
-    
-        if (!hasKey) {
-            setAnalysisError('An API Key is required for Gemini analysis. Please select one and try again.');
-            return;
-        }
-
-        setIsAnalyzing(true);
-        setAnalysisError('');
-        setAnalysisResult(null);
-
-        try {
-            const analysisText = await analyzeWithGemini(decodedCsv);
-            setAnalysisResult(analysisText);
-        } catch (err) {
-            console.error("Error analyzing with Gemini:", err);
-            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-            setAnalysisError(`An error occurred during analysis. Check console. Error: ${errorMessage}`);
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
 
     return (
         <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
@@ -154,7 +110,6 @@ export const ConverterPage: React.FC = () => {
                         </div>
                     </div>
 
-
                     {decodedCsv && !isLoading && (
                         <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
                             <div className="flex">
@@ -166,7 +121,7 @@ export const ConverterPage: React.FC = () => {
                                 <div className="ml-3">
                                     <p className="text-sm font-medium text-green-800">Decoding Successful</p>
                                     <p className="mt-1 text-sm text-green-700">
-                                        Decoded {decodedLines} data entries. You can now download the CSV or analyze it with Gemini.
+                                        Decoded {decodedLines} data entries. You can now download the CSV.
                                     </p>
                                 </div>
                             </div>
@@ -174,54 +129,36 @@ export const ConverterPage: React.FC = () => {
                     )}
 
                     {error && <p className="text-red-500 text-center text-sm">{error}</p>}
-                    {analysisError && <p className="text-red-500 text-center text-sm">{analysisError}</p>}
-
-                    <div className="pt-4 flex flex-col items-center justify-center gap-4">
+                   
+                    <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
                         <button
                             onClick={handleDecode}
-                            disabled={!logFile || isLoading || isAnalyzing}
+                            disabled={!logFile || isLoading}
                             className="w-full sm:w-auto px-8 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Decoding...' : (decodedCsv ? 'Re-decode Log File' : 'Decode Log File')}
                         </button>
                         
                         {decodedCsv && !isLoading && (
-                            <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
-                                <button
-                                    onClick={handleDownload}
-                                    disabled={isAnalyzing}
-                                    className="w-full sm:w-auto px-8 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <DownloadIcon className="w-5 h-5 mr-2 -ml-1" />
-                                    Download CSV
-                                </button>
-                                <button
-                                    onClick={handleAnalyze}
-                                    disabled={isAnalyzing || isLoading}
-                                    className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <SparklesIcon className="w-5 h-5" />
-                                    {isAnalyzing ? 'Analyzing...' : 'Analyze with Gemini'}
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleDownload}
+                                className="w-full sm:w-auto px-8 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors flex items-center justify-center"
+                            >
+                                <DownloadIcon className="w-5 h-5 mr-2 -ml-1" />
+                                Download CSV
+                            </button>
                         )}
                     </div>
 
-                    {isAnalyzing && (
-                        <div className="text-center pt-4">
-                            <p className="text-gray-600 animate-pulse">Gemini is analyzing the data...</p>
-                        </div>
-                    )}
-                    
-                    {analysisResult && (
-                        <div className="mt-8 bg-gray-50 p-6 rounded-lg shadow-inner">
-                            <h3 className="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
-                                <SparklesIcon className="w-6 h-6 text-purple-500"/>
-                                Gemini Analysis
-                            </h3>
-                            <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-wrap bg-white p-4 rounded-md border border-gray-200">
-                                {analysisResult}
-                            </div>
+                    {decodedCsv && !isLoading && (
+                         <div className="mt-8 bg-gray-50 p-6 rounded-lg shadow-inner">
+                            <h3 className="text-xl font-semibold mb-4 text-gray-800">Decoded Data Preview</h3>
+                            <textarea
+                                readOnly
+                                value={decodedCsv}
+                                className="w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs bg-white"
+                                placeholder="Decoded CSV data will appear here..."
+                            />
                         </div>
                     )}
                 </div>

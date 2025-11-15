@@ -1,7 +1,6 @@
 
 
-// FIX: Add GoogleGenAI to imports to allow for API calls.
-import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
+import { FunctionDeclaration, Type } from "@google/genai";
 
 export const modelName = "gemini-2.5-flash";
 
@@ -73,56 +72,4 @@ export const getSystemInstruction = (
 
 export const getInitialAnalysisPrompt = (): string => {
     return `Please provide a brief, friendly welcome message. Greet the user and let them know you're ready to analyze their CAN log data. Do not summarize the data. Keep it to one or two sentences.`;
-};
-
-// FIX: Add missing 'analyzeWithGemini' function to analyze CSV data with Gemini API.
-export const analyzeWithGemini = async (csvData: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    // Sample the data to prevent token limit errors with large files
-    const MAX_LINES_FOR_ANALYSIS = 1000;
-    const lines = csvData.trim().split('\n');
-    let sampledCsvData = csvData;
-
-    if (lines.length > MAX_LINES_FOR_ANALYSIS) {
-        const header = lines[0];
-        const dataRows = lines.slice(1);
-        // Subtract 1 for the header, 1 for the '...'
-        const half = Math.floor((MAX_LINES_FOR_ANALYSIS - 2) / 2);
-        
-        const firstHalf = dataRows.slice(0, half);
-        const lastHalf = dataRows.slice(dataRows.length - half);
-
-        sampledCsvData = [header, ...firstHalf, '...', ...lastHalf].join('\n');
-        
-        console.log(`Original CSV has ${lines.length} lines. Sampling to ${firstHalf.length + lastHalf.length + 2} lines for Gemini analysis.`);
-    }
-
-    const prompt = `You are an expert in automotive Controller Area Network (CAN) bus diagnostics.
-Analyze the following CSV data which represents decoded CAN messages from a vehicle.
-The data may have been sampled for brevity, indicated by a "..." line between data sections.
-Provide a summary of the vehicle's behavior, highlighting any anomalies, potential issues, fault signals, or interesting patterns you observe.
-Focus on signals like speed, battery state of charge, temperatures, and any signals with "Fault" in their name.
-A fault signal with a value of 1 indicates a fault is active. A value of 0 means no fault.
-Be concise and clear in your analysis. Do not use markdown.
-
-Here is the data:
-${sampledCsvData}`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-        });
-        return response.text;
-    } catch (error) {
-        console.error('Error calling Gemini API:', error);
-        if (error instanceof Error) {
-             if (error.message.includes('token count exceeds') || error.message.includes('400')) {
-                 throw new Error(`The decoded data is too large for analysis, even after sampling. Please use a smaller log file.`);
-            }
-            throw new Error(`Gemini API error: ${error.message}`);
-        }
-        throw new Error('An unknown error occurred while contacting the Gemini API.');
-    }
 };

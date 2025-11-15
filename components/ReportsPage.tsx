@@ -5,7 +5,6 @@ import { parsePcanLog } from '../google-service/can-parser';
 import { decodeCanData } from '../google-service/decoder';
 import { parseDbc } from '../google-service/matrix-parser';
 import { defaultDbcContent } from '../google-service/default-matrix';
-import { analyzeWithGemini } from '../google-service/gemini-service';
 
 interface ReportsPageProps {
     devices: Device[];
@@ -16,7 +15,6 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [decodedCsv, setDecodedCsv] = useState<string | null>(null);
-    const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
     const selectedDevice = useMemo(() => {
         return devices.find(d => d.id === selectedDeviceId);
@@ -28,30 +26,14 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
             return;
         }
 
-        // API Key check to ensure Gemini can be called.
-        // @ts-ignore - aistudio is provided by the execution environment
-        let hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            // @ts-ignore
-            await window.aistudio.openSelectKey();
-            // @ts-ignore
-            hasKey = await window.aistudio.hasSelectedApiKey(); // Re-check after user interaction
-        }
-
-        if (!hasKey) {
-            setError('An API Key is required for Gemini analysis. Please select one and try again.');
-            return;
-        }
-
         setIsLoading(true);
         setError('');
         setDecodedCsv(null);
-        setAnalysisResult(null);
 
         // Use setTimeout to allow the UI to update to the loading state
         setTimeout(async () => {
             try {
-                // 1. Decode the log file
+                // Decode the log file
                 const matrix = parseDbc(defaultDbcContent);
                 const parsedLogData = parsePcanLog(selectedDevice.logFileContent!);
                 
@@ -64,10 +46,6 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                     throw new Error('Decoding complete, but no matching messages were found in the CAN matrix.');
                 }
                 setDecodedCsv(csvContent);
-
-                // 2. Analyze with Gemini
-                const analysisText = await analyzeWithGemini(csvContent);
-                setAnalysisResult(analysisText);
 
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -109,7 +87,6 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                                     setSelectedDeviceId(e.target.value);
                                     setError('');
                                     setDecodedCsv(null);
-                                    setAnalysisResult(null);
                                 }}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                             >
@@ -128,7 +105,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                                 disabled={!selectedDevice || !selectedDevice.logFileContent || isLoading}
                                 className="w-full px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isLoading ? 'Generating...' : (analysisResult ? 'Regenerate' : 'Generate')}
+                                {isLoading ? 'Generating...' : (decodedCsv ? 'Regenerate Report' : 'Generate Report')}
                             </button>
                              <button
                                 onClick={handleDownload}
@@ -136,7 +113,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                                 className="w-full flex items-center justify-center px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <DownloadIcon className="w-5 h-5 mr-2" />
-                                Download
+                                Download CSV
                             </button>
                         </div>
                     </div>
@@ -150,7 +127,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                 {/* --- Results Section --- */}
                 {isLoading && (
                     <div className="text-center py-12">
-                        <p className="text-lg text-gray-600 animate-pulse">Decoding log and analyzing with Gemini...</p>
+                        <p className="text-lg text-gray-600 animate-pulse">Decoding log file...</p>
                     </div>
                 )}
                 
@@ -161,19 +138,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
                     </div>
                 )}
 
-                {analysisResult && decodedCsv && !isLoading && (
+                {decodedCsv && !isLoading && (
                     <div className="mt-8 space-y-8">
-                        {/* Gemini Analysis */}
-                        <div className="bg-card p-6 rounded-lg shadow-sm">
-                            <h3 className="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
-                                <SparklesIcon className="w-6 h-6 text-purple-500"/>
-                                Gemini Analysis
-                            </h3>
-                            <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded-md border">
-                                {analysisResult}
-                            </div>
-                        </div>
-
                         {/* Decoded Data */}
                         <div className="bg-card p-6 rounded-lg shadow-sm">
                             <div className="flex justify-between items-center mb-4">
