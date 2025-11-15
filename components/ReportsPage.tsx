@@ -28,6 +28,21 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ devices }) => {
             return;
         }
 
+        // API Key check to ensure Gemini can be called.
+        // @ts-ignore - aistudio is provided by the execution environment
+        let hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+            // @ts-ignore
+            await window.aistudio.openSelectKey();
+            // @ts-ignore
+            hasKey = await window.aistudio.hasSelectedApiKey(); // Re-check after user interaction
+        }
+
+        if (!hasKey) {
+            setError('An API Key is required for Gemini analysis. Please select one and try again.');
+            return;
+        }
+
         setIsLoading(true);
         setError('');
         setDecodedCsv(null);

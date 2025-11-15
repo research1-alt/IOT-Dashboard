@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import { FileUploadIcon, SparklesIcon, DownloadIcon } from './Icons';
 import { parsePcanLog } from '../google-service/can-parser';
@@ -105,6 +102,21 @@ export const ConverterPage: React.FC = () => {
             return;
         }
         
+        // API Key check to ensure Gemini can be called.
+        // @ts-ignore - aistudio is provided by the execution environment
+        let hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+            // @ts-ignore
+            await window.aistudio.openSelectKey();
+            // @ts-ignore
+            hasKey = await window.aistudio.hasSelectedApiKey(); // Re-check after user interaction
+        }
+    
+        if (!hasKey) {
+            setAnalysisError('An API Key is required for Gemini analysis. Please select one and try again.');
+            return;
+        }
+
         setIsAnalyzing(true);
         setAnalysisError('');
         setAnalysisResult(null);
