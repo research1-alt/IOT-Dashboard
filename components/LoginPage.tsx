@@ -7,9 +7,10 @@ interface LoginPageProps {
     members: Member[];
     onLoginSuccess: (user: Member) => void;
     onNavigateToSignup: () => void;
+    onNavigateToForgotPassword: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ members, onLoginSuccess, onNavigateToSignup }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ members, onLoginSuccess, onNavigateToSignup, onNavigateToForgotPassword }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -69,12 +70,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ members, onLoginSuccess, onNaviga
                             />
                         </div>
                     </div>
+                    
+                    <div className="flex items-center justify-end">
+                        <div className="text-sm">
+                            <button
+                                type="button"
+                                onClick={onNavigateToForgotPassword}
+                                className="font-medium text-primary-600 hover:text-primary-500"
+                            >
+                                Forgot your password?
+                            </button>
+                        </div>
+                    </div>
 
                     {error && (
                         <p className="text-center text-sm text-red-600 pt-2">{error}</p>
                     )}
 
-                    <div className="pt-2">
+                    <div>
                         <button
                             type="submit"
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"

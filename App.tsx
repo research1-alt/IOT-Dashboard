@@ -4,6 +4,8 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ProfileSelectionPage from './components/ProfileSelectionPage';
 import SignupPage from './components/SignupPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import { Member, UserRole, Device } from './types';
 import { mockMembers } from './data/mock-members';
 import { mockDevices } from './data/mock-devices';
@@ -12,7 +14,9 @@ import { mockDevices } from './data/mock-devices';
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<Member | null>(null);
     const [profileSelected, setProfileSelected] = useState<boolean>(false);
-    const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+    const [authView, setAuthView] = useState<'login' | 'signup' | 'forgotPassword' | 'resetPassword'>('login');
+    const [userToReset, setUserToReset] = useState<Member | null>(null);
+
 
     // --- Centralized State Management ---
     const [devices, setDevices] = useState<Device[]>(() => {
@@ -52,6 +56,29 @@ const App: React.FC = () => {
         };
         setMembers(prev => [...prev, newMember]);
         return newMember;
+    };
+
+    const handleForgotPasswordRequest = (email: string): boolean => {
+        const user = members.find(m => m.email.toLowerCase() === email.toLowerCase());
+        if (user) {
+            setUserToReset(user);
+            setAuthView('resetPassword');
+            return true;
+        }
+        return false;
+    };
+    
+    const handleResetPassword = (password: string): boolean => {
+        if (!userToReset) return false;
+
+        setMembers(prevMembers => 
+            prevMembers.map(m => 
+                m.id === userToReset.id ? { ...m, password } : m
+            )
+        );
+        setUserToReset(null);
+        setAuthView('login');
+        return true;
     };
 
 
@@ -169,10 +196,22 @@ const App: React.FC = () => {
 
     // --- Render Logic ---
     if (!currentUser) {
-        if (authView === 'login') {
-            return <LoginPage members={members} onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setAuthView('signup')} />;
-        } else {
-            return <SignupPage members={members} onSignup={handleSignup} onSignupSuccess={handleLoginSuccess} onNavigateToLogin={() => setAuthView('login')} />;
+        switch (authView) {
+            case 'login':
+                return <LoginPage members={members} onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setAuthView('signup')} onNavigateToForgotPassword={() => setAuthView('forgotPassword')} />;
+            case 'signup':
+                return <SignupPage members={members} onSignup={handleSignup} onSignupSuccess={handleLoginSuccess} onNavigateToLogin={() => setAuthView('login')} />;
+            case 'forgotPassword':
+                return <ForgotPasswordPage onForgotPasswordRequest={handleForgotPasswordRequest} onNavigateToLogin={() => setAuthView('login')} />;
+            case 'resetPassword':
+                if (userToReset) {
+                    return <ResetPasswordPage userToReset={userToReset} onResetPassword={handleResetPassword} onNavigateToLogin={() => { setUserToReset(null); setAuthView('login'); }} />;
+                }
+                // Fallback if userToReset is null
+                setAuthView('login');
+                return null;
+            default:
+                 return <LoginPage members={members} onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setAuthView('signup')} onNavigateToForgotPassword={() => setAuthView('forgotPassword')} />;
         }
     }
     
