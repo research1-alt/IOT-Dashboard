@@ -1,0 +1,5 @@
+{
+  "name": "Telematics Fleet Dashboard",
+  "description": "A dashboard to monitor and manage a fleet of devices.",
+  "requestFramePermissions": []
+}
