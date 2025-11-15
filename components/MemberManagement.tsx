@@ -1,14 +1,14 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Device, Member, UserRole } from '../types';
-import { TrashIcon, MailIcon, UserCircleIcon } from './Icons';
+import { MailIcon, UserCircleIcon } from './Icons';
 
 // --- PROPS INTERFACE ---
 interface MemberManagementProps {
     devices: Device[];
     members: Member[];
     onAddMember: (name: string, email: string, role: UserRole) => void;
-    onRemoveMember: (memberId: string) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
     onUpdateMemberAssignments: (memberId: string, assignedDevices: string[]) => void;
 }
@@ -97,7 +97,7 @@ const AssignDevicesModal: React.FC<{
 
 
 // --- MAIN COMPONENT ---
-const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, onAddMember, onRemoveMember, onUpdateMemberRole, onUpdateMemberAssignments }) => {
+const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, onAddMember, onUpdateMemberRole, onUpdateMemberAssignments }) => {
     const [newMemberName, setNewMemberName] = useState('');
     const [newMemberEmail, setNewMemberEmail] = useState('');
     const [newMemberRole, setNewMemberRole] = useState<UserRole>('Customer');
@@ -190,14 +190,11 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ devices, members, o
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{member.role === 'Admin' ? 'All' : member.assignedDevices.length}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         {member.role !== 'Admin' && (
-                                            <>
-                                                <button onClick={() => setMemberToEdit(member)} className="text-primary-600 hover:text-primary-900">
-                                                    {member.assignedDevices.length > 0 ? 'Edit Assigned Devices' : 'Assign Devices'}
-                                                </button>
-                                                <button onClick={() => onRemoveMember(member.id)} className="text-red-600 hover:text-red-900"><TrashIcon className="w-5 h-5 inline" /></button>
-                                            </>
+                                            <button onClick={() => setMemberToEdit(member)} className="text-primary-600 hover:text-primary-900">
+                                                {member.assignedDevices.length > 0 ? 'Edit Assigned Devices' : 'Assign Devices'}
+                                            </button>
                                         )}
                                     </td>
                                 </tr>

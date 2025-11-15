@@ -25,6 +25,7 @@ export interface Device {
   id: string;
   status: 'Driving' | 'Parked' | 'Offline' | 'Maintenance';
   location: string;
+  logFileContent?: string; // Content of the attached CAN log file
 }
 
 export interface DecodingFile {

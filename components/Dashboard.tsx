@@ -21,11 +21,8 @@ interface DashboardProps {
     devices: Device[];
     members: Member[];
     onAddDevice: (deviceId: string) => void;
-    onAddMultipleDevices: (deviceIds: string[]) => { added: number, duplicates: number };
-    onRemoveDevice: (deviceId: string) => void;
-    onResetAllDevices: () => void;
+    onAttachLog: (deviceId: string, content: string) => void;
     onAddMember: (name: string, email: string, role: UserRole) => void;
-    onRemoveMember: (memberId: string) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
     onUpdateMemberAssignments: (memberId: string, assignedDevices: string[]) => void;
 }
@@ -117,11 +114,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                         devices={visibleDevices} 
                         members={members}
                         onAddDevice={props.onAddDevice}
-                        onAddMultipleDevices={props.onAddMultipleDevices}
-                        onRemoveDevice={props.onRemoveDevice}
-                        onResetAllDevices={props.onResetAllDevices} 
+                        onAttachLog={props.onAttachLog}
                         onAddMember={props.onAddMember}
-                        onRemoveMember={props.onRemoveMember}
                         onUpdateMemberRole={props.onUpdateMemberRole}
                         onUpdateMemberAssignments={props.onUpdateMemberAssignments}
                     />

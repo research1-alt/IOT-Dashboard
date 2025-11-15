@@ -31,7 +31,13 @@ const App: React.FC = () => {
 
     // --- Data Persistence Effects ---
     useEffect(() => {
-        localStorage.setItem('fleetDevices', JSON.stringify(devices));
+        // Exclude large log file content from being persisted to localStorage
+        // to prevent exceeding storage quotas and causing crashes.
+        const devicesToPersist = devices.map(device => {
+            const { logFileContent, ...restOfDevice } = device;
+            return restOfDevice;
+        });
+        localStorage.setItem('fleetDevices', JSON.stringify(devicesToPersist));
     }, [devices]);
 
     useEffect(() => {
@@ -113,51 +119,13 @@ const App: React.FC = () => {
             setDevices(prev => [...prev, newDevice]);
         }
     };
-    
-    const handleAddMultipleDevices = (deviceIds: string[]): { added: number, duplicates: number } => {
-        const existingDeviceIds = new Set(devices.map(d => d.id));
-        const newDeviceIds = deviceIds.filter(id => id && !existingDeviceIds.has(id));
 
-        if (newDeviceIds.length === 0) {
-            return { added: 0, duplicates: deviceIds.length };
-        }
-        
-        const newDevices: Device[] = newDeviceIds.map(id => ({
-            id,
-            status: 'Offline',
-            location: 'N/A'
-        }));
-
-        setDevices(prev => [...prev, ...newDevices]);
-
-        return {
-            added: newDeviceIds.length,
-            duplicates: deviceIds.length - newDeviceIds.length
-        };
-    };
-
-    const handleRemoveDevice = (deviceId: string) => {
-        setDevices(prev => prev.filter(d => d.id !== deviceId));
-        const updatedMembers = members.map(member => ({
-            ...member,
-            assignedDevices: member.assignedDevices.filter(id => id !== deviceId)
-        }));
-        setMembers(updatedMembers);
-
-        if (currentUser && currentUser.assignedDevices.includes(deviceId)) {
-            setCurrentUser({
-                ...currentUser,
-                assignedDevices: currentUser.assignedDevices.filter(id => id !== deviceId)
-            });
-        }
-    };
-
-    const handleResetAllDevices = () => {
-        setDevices(mockDevices);
-        setMembers(prev => prev.map(m => ({ ...m, assignedDevices: [] })));
-        if (currentUser) {
-            setCurrentUser({ ...currentUser, assignedDevices: [] });
-        }
+    const handleAttachLog = (deviceId: string, content: string) => {
+        setDevices(prevDevices => 
+            prevDevices.map(d => 
+                d.id === deviceId ? { ...d, logFileContent: content } : d
+            )
+        );
     };
 
     const handleAddMember = (name: string, email: string, role: UserRole) => {
@@ -170,10 +138,6 @@ const App: React.FC = () => {
             assignedDevices: []
         };
         setMembers(prev => [...prev, newMember]);
-    };
-
-    const handleRemoveMember = (memberId: string) => {
-        setMembers(prev => prev.filter(m => m.id !== memberId));
     };
 
     const handleUpdateMemberRole = (memberId: string, role: UserRole) => {
@@ -227,11 +191,8 @@ const App: React.FC = () => {
             devices={devices}
             members={members}
             onAddDevice={handleAddDevice}
-            onAddMultipleDevices={handleAddMultipleDevices}
-            onRemoveDevice={handleRemoveDevice}
-            onResetAllDevices={handleResetAllDevices}
+            onAttachLog={handleAttachLog}
             onAddMember={handleAddMember}
-            onRemoveMember={handleRemoveMember}
             onUpdateMemberRole={handleUpdateMemberRole}
             onUpdateMemberAssignments={handleUpdateMemberAssignments}
         />
