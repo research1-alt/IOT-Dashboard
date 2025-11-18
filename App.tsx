@@ -10,6 +10,16 @@ import ResetPasswordPage from './components/ResetPasswordPage';
 import { Member, UserRole, Device } from './types';
 import { mockMembers } from './data/mock-members';
 import { mockDevices } from './data/mock-devices';
+import { LoadingSpinnerIcon } from './components/Icons';
+
+// A simple, centered loading indicator component
+const LoadingIndicator: React.FC = () => (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center font-sans text-sidebar">
+        <LoadingSpinnerIcon className="w-12 h-12 animate-spin text-primary-600" />
+        <p className="mt-4 text-lg font-semibold">Loading Fleet Data...</p>
+        <p className="text-sm text-gray-500">Please wait a moment.</p>
+    </div>
+);
 
 
 const App: React.FC = () => {
@@ -17,32 +27,59 @@ const App: React.FC = () => {
     const [profileSelected, setProfileSelected] = useState<boolean>(false);
     const [authView, setAuthView] = useState<'login' | 'signup' | 'forgotPassword' | 'resetPassword'>('login');
     const [userToReset, setUserToReset] = useState<Member | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
 
     // --- Centralized State Management ---
-    const [devices, setDevices] = useState<Device[]>(() => {
-        const saved = localStorage.getItem('fleetDevices');
-        return saved ? JSON.parse(saved) : mockDevices;
-    });
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [members, setMembers] = useState<Member[]>([]);
 
-    const [members, setMembers] = useState<Member[]>(() => {
-        const saved = localStorage.getItem('fleetMembers');
-        return saved ? JSON.parse(saved) : mockMembers;
-    });
+    // --- Data Fetching and Persistence ---
+    useEffect(() => {
+        const fetchData = async () => {
+            // Simulate fetching data from a server with a delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            try {
+                // In a real app, you'd fetch from an API. Here we simulate by
+                // checking localStorage first, then falling back to mock data.
+                const savedDevices = localStorage.getItem('fleetDevices');
+                const devicesData = savedDevices ? JSON.parse(savedDevices) : mockDevices;
+                
+                const savedMembers = localStorage.getItem('fleetMembers');
+                const membersData = savedMembers ? JSON.parse(savedMembers) : mockMembers;
+                
+                setDevices(devicesData);
+                setMembers(membersData);
+            } catch (error) {
+                console.error("Failed to load initial data:", error);
+                // You could set an error state here to show a message to the user
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     // --- Data Persistence Effects ---
     useEffect(() => {
-        // Exclude large log file content from being persisted to localStorage
-        // to prevent exceeding storage quotas and causing crashes.
-        const devicesToPersist = devices.map(device => {
-            const { logFileContent, ...restOfDevice } = device;
-            return restOfDevice;
-        });
-        localStorage.setItem('fleetDevices', JSON.stringify(devicesToPersist));
+        // This effect acts as a "cache writer" whenever the devices state changes.
+        // We check for length > 0 to avoid overwriting cache with an empty array on initial load.
+        if (devices.length > 0) {
+            const devicesToPersist = devices.map(device => {
+                const { logFileContent, ...restOfDevice } = device;
+                return restOfDevice;
+            });
+            localStorage.setItem('fleetDevices', JSON.stringify(devicesToPersist));
+        }
     }, [devices]);
 
     useEffect(() => {
-        localStorage.setItem('fleetMembers', JSON.stringify(members));
+        // Persist members to localStorage when they change.
+        if (members.length > 0) {
+            localStorage.setItem('fleetMembers', JSON.stringify(members));
+        }
     }, [members]);
 
     // --- Session & Navigation Handlers ---
@@ -170,6 +207,10 @@ const App: React.FC = () => {
     };
 
     // --- Render Logic ---
+    if (isLoading) {
+        return <LoadingIndicator />;
+    }
+
     if (!currentUser) {
         switch (authView) {
             case 'login':
