@@ -157,7 +157,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             case 'billing':
                 return <BillingPage />;
             case 'settings':
-                 return <SettingsPage onConfigSave={onRefresh} />;
+                 return <SettingsPage onConfigSave={onRefresh} devices={devices} members={members} />;
             default:
                 return null;
         }

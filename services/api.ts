@@ -29,6 +29,22 @@ export const saveAppConfig = (config: AppConfig) => {
 
 // --- DATA FETCHING ---
 
+const validateResponse = async (response: Response, endpoint: string) => {
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") === -1) {
+        // If the server sent HTML (like a 404 page or a login page), throw a specific error
+        const text = await response.text();
+        const preview = text.substring(0, 100);
+        throw new Error(`Expected JSON but received ${contentType}. You might be pointing to a website URL instead of an API endpoint. (Preview: ${preview}...)`);
+    }
+
+    if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+};
+
 /**
  * Fetches the list of all devices.
  * If mode is 'local', uses localStorage/mock data.
@@ -41,23 +57,23 @@ export const fetchDevices = async (): Promise<Device[]> => {
         try {
             // Remove trailing slash if present to avoid double slashes
             const baseUrl = config.serverUrl.replace(/\/$/, "");
-            const response = await fetch(`${baseUrl}/devices`, {
+            const endpoint = `${baseUrl}/devices`;
+            
+            const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer ${config.apiKey}` // If you add auth later
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data;
+            return await validateResponse(response, endpoint);
         } catch (error) {
             console.error("Server fetch failed:", error);
-            throw new Error(`Failed to connect to server at ${config.serverUrl}. Please check your settings.`);
+            let msg = error instanceof Error ? error.message : "Unknown error";
+            if (msg.includes("Failed to fetch")) {
+                msg = "Network Error: Could not connect. Check your Server URL and ensure CORS is enabled on your backend.";
+            }
+            throw new Error(`Failed to fetch data: ${msg}`);
         }
     }
 
@@ -86,18 +102,21 @@ export const fetchMembers = async (): Promise<Member[]> => {
     if (config.mode === 'server') {
         try {
             const baseUrl = config.serverUrl.replace(/\/$/, "");
-            const response = await fetch(`${baseUrl}/members`, {
+            const endpoint = `${baseUrl}/members`;
+
+            const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
 
-            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-            return await response.json();
+            return await validateResponse(response, endpoint);
         } catch (error) {
              console.error("Server fetch members failed:", error);
-             // Fallback or re-throw depending on desired behavior. 
-             // Throwing ensures the user knows the server connection failed.
-             throw error; 
+             let msg = error instanceof Error ? error.message : "Unknown error";
+             if (msg.includes("Failed to fetch")) {
+                 msg = "Network Error: Could not connect.";
+             }
+             throw new Error(`Failed to fetch members: ${msg}`);
         }
     }
 
