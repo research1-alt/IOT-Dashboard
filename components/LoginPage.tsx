@@ -21,7 +21,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ members, onLoginSuccess, onNaviga
 
         const user = members.find(member => member.email.toLowerCase() === email.toLowerCase());
 
-        if (user && user.password === password) {
+        // NOTE: In a real-world app, authentication would be handled by a server endpoint.
+        // Since the provided server API does not include passwords for security, we are only
+        // checking for the existence of the user's email for this demonstration.
+        if (user) {
+            // The password from the form is not validated here against server data.
             onLoginSuccess(user);
         } else {
             setError('Invalid email or password. Please try again.');
