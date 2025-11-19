@@ -12,10 +12,10 @@ import * as api from './services/api';
 import { LoadingSpinnerIcon } from './components/Icons';
 
 // An enhanced, centered loading screen that can also display errors
-const LoadingScreen: React.FC<{ error?: string | null }> = ({ error }) => (
+const LoadingScreen: React.FC<{ error?: string | null; onRetry?: () => void }> = ({ error, onRetry }) => (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center font-sans text-sidebar p-4">
         {error ? (
-            <div className="text-center">
+            <div className="text-center max-w-md">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                     <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -23,18 +23,30 @@ const LoadingScreen: React.FC<{ error?: string | null }> = ({ error }) => (
                 </div>
                 <h3 className="mt-4 text-xl font-semibold text-gray-800">Initialization Failed</h3>
                 <p className="mt-2 text-sm text-red-600 bg-red-50 p-3 rounded-md">{error}</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="mt-6 px-4 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                    Retry
-                </button>
+                <div className="mt-6 space-y-2">
+                     <button
+                        onClick={onRetry || (() => window.location.reload())}
+                        className="w-full px-4 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    >
+                        Retry Connection
+                    </button>
+                    {/* If the error is due to a bad URL, give them a way to reset to local mode locally or they are stuck */}
+                     <button
+                        onClick={() => {
+                             localStorage.setItem('fleetAppConfig', JSON.stringify({ mode: 'local', serverUrl: '' }));
+                             window.location.reload();
+                        }}
+                        className="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50"
+                    >
+                        Reset to Local Mode
+                    </button>
+                </div>
             </div>
         ) : (
             <>
                 <LoadingSpinnerIcon className="w-12 h-12 animate-spin text-primary-600" />
-                <p className="mt-4 text-lg font-semibold">Starting Local System...</p>
-                <p className="text-sm text-gray-500">Loading data from storage.</p>
+                <p className="mt-4 text-lg font-semibold">Initializing System...</p>
+                <p className="text-sm text-gray-500">Loading data from configured source.</p>
             </>
         )}
     </div>
@@ -54,46 +66,57 @@ const App: React.FC = () => {
     const [members, setMembers] = useState<Member[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    // --- Data Fetching and Persistence ---
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch data from the API service layer.
-                const [devicesData, membersData] = await Promise.all([
-                    api.fetchDevices(),
-                    api.fetchMembers()
-                ]);
-                
-                setDevices(devicesData);
-                setMembers(membersData);
-            } catch (error) {
-                console.error("Failed to fetch data:", error);
-                const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
-                setError(errorMessage);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    // --- Data Fetching Logic ---
+    const fetchSystemData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Fetch data from the API service layer.
+            const [devicesData, membersData] = await Promise.all([
+                api.fetchDevices(),
+                api.fetchMembers()
+            ]);
+            
+            setDevices(devicesData);
+            setMembers(membersData);
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        fetchData();
-    }, []); // Empty dependency array ensures this runs only once on mount
-
-    // --- Data Persistence Effects ---
+    // --- Initial Load ---
     useEffect(() => {
-        if (devices.length > 0 && !isLoading) {
+        fetchSystemData();
+    }, []); 
+
+    // --- Manual Refresh Handler (Connected to "Sync Data" button) ---
+    const handleManualRefresh = async () => {
+        await fetchSystemData();
+    };
+
+    // --- Data Persistence Effects (Only for Local Mode implicitly via api.ts check) ---
+    useEffect(() => {
+        if (devices.length > 0 && !isLoading && !error) {
+             // We only persist to localStorage if we successfully loaded data.
+             // If in server mode, this cache helps if they switch back to local, 
+             // but api.fetchDevices handles the source of truth.
             const devicesToPersist = devices.map(device => {
                 const { logFileContent, ...restOfDevice } = device;
                 return restOfDevice;
             });
             localStorage.setItem('fleetDevices', JSON.stringify(devicesToPersist));
         }
-    }, [devices, isLoading]);
+    }, [devices, isLoading, error]);
 
     useEffect(() => {
-        if (members.length > 0 && !isLoading) {
+        if (members.length > 0 && !isLoading && !error) {
             localStorage.setItem('fleetMembers', JSON.stringify(members));
         }
-    }, [members, isLoading]);
+    }, [members, isLoading, error]);
 
     // --- Session & Navigation Handlers ---
     const handleLoginSuccess = (user: Member) => {
@@ -147,8 +170,10 @@ const App: React.FC = () => {
                 setCurrentUser(updatedUser);
                 setProfileSelected(true);
             } else {
-                console.error("Critical Error: Logged-in user not found in the master list. Forcing logout.");
-                handleLogout();
+                // Fallback if member list was refreshed and user is gone, or just use current
+                const updatedUser = { ...currentUser, role };
+                setCurrentUser(updatedUser);
+                setProfileSelected(true);
             }
         }
     };
@@ -220,12 +245,14 @@ const App: React.FC = () => {
     };
 
     // --- Render Logic ---
-    if (isLoading) {
+    // If loading and no user is logged in, show global loader
+    if (isLoading && !currentUser) {
         return <LoadingScreen />;
     }
 
-    if (error && !currentUser) { // Only show full-page error if not logged in
-        return <LoadingScreen error={error} />;
+    // If critical error prevents data loading at start
+    if (error && !currentUser) { 
+        return <LoadingScreen error={error} onRetry={fetchSystemData} />;
     }
 
     const renderAppContent = () => {
@@ -264,13 +291,14 @@ const App: React.FC = () => {
                 onAddMember={handleAddMember}
                 onUpdateMemberRole={handleUpdateMemberRole}
                 onUpdateMemberAssignments={handleUpdateMemberAssignments}
+                onRefresh={handleManualRefresh}
             />
         );
     }
     
     return (
         <div className="relative min-h-screen">
-            <div className="pb-8"> {/* Padding to prevent content from being hidden by the status bar */}
+            <div className="pb-8"> 
                 {renderAppContent()}
             </div>
             <StatusBar />

@@ -104,3 +104,12 @@ export interface CANMessage {
     isTx: boolean;
     decoded?: { [key: string]: number | string };
 }
+
+// Configuration Types
+export type DataSourceMode = 'local' | 'server';
+
+export interface AppConfig {
+    mode: DataSourceMode;
+    serverUrl: string;
+    apiKey?: string; // Optional for future use
+}

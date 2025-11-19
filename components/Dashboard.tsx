@@ -12,6 +12,7 @@ import ReportsPage from './ReportsPage';
 import BillingPage from './BillingPage';
 import DeviceDetailView from './DeviceDetailView';
 import LiveVehicleDataView from './LiveVehicleDataView';
+import SettingsPage from './SettingsPage';
 import { ConverterPage } from './ConverterPage';
 import { TotalDevicesIcon, OnlineDevicesIcon, DistanceIcon, AlertsIcon } from './Icons';
 import { Device, NavView, Member, UserRole } from '../types';
@@ -28,10 +29,11 @@ interface DashboardProps {
     onAddMember: (name: string, email: string, role: UserRole) => void;
     onUpdateMemberRole: (memberId: string, role: UserRole) => void;
     onUpdateMemberAssignments: (memberId: string, assignedDevices: string[]) => void;
+    onRefresh: () => Promise<void>;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-    const { currentUser, onLogout, onChangeProfile, devices, members } = props;
+    const { currentUser, onLogout, onChangeProfile, devices, members, onRefresh } = props;
     const [activeView, setActiveView] = useState<NavView>('dashboard');
     const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
     const [showLiveData, setShowLiveData] = useState(false);
@@ -155,19 +157,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             case 'billing':
                 return <BillingPage />;
             case 'settings':
-                 return (
-                    <main className="flex-1 p-6 lg:p-8">
-                        <div className="bg-card p-8 rounded-lg shadow-sm text-center">
-                            <h3 className="text-xl font-semibold text-gray-800">System Settings</h3>
-                             <p className="mt-4 text-gray-600">
-                                This section is reserved for administrative settings and system configuration.
-                            </p>
-                            <p className="mt-2 text-sm text-gray-500">
-                                (This feature is currently under development.)
-                            </p>
-                        </div>
-                    </main>
-                );
+                 return <SettingsPage onConfigSave={onRefresh} />;
             default:
                 return null;
         }
@@ -178,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         <div className="flex h-screen bg-background font-sans text-gray-800">
             <Sidebar currentUser={currentUser} onLogout={onLogout} onNavigate={handleNavigate} activeView={activeView} />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header currentUser={currentUser} onChangeProfile={onChangeProfile} title={viewTitles[activeView]} />
+                <Header currentUser={currentUser} onChangeProfile={onChangeProfile} title={viewTitles[activeView]} onRefresh={onRefresh} />
                 {renderContent()}
             </div>
         </div>

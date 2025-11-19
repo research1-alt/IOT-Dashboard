@@ -1,15 +1,30 @@
 
-import React from 'react';
-import { SearchIcon, BellIcon, UserCircleIcon, SwitchProfileIcon } from './Icons';
+
+import React, { useState } from 'react';
+import { SearchIcon, BellIcon, UserCircleIcon, SwitchProfileIcon, RefreshIcon } from './Icons';
 import { Member } from '../types';
 
 interface HeaderProps {
     currentUser: Member;
     onChangeProfile: () => void;
     title: string;
+    onRefresh?: () => Promise<void> | void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title }) => {
+const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title, onRefresh }) => {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        if (onRefresh) {
+            setIsRefreshing(true);
+            try {
+                await onRefresh();
+            } finally {
+                setTimeout(() => setIsRefreshing(false), 500); // Minimum spin time for visual feedback
+            }
+        }
+    };
+
     return (
         <header className="h-20 bg-card border-b border-gray-200 flex items-center justify-between px-8 flex-shrink-0">
             <div>
@@ -17,6 +32,18 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title }) 
                 <p className="text-sm text-gray-500">Viewing as: {currentUser.role}</p>
             </div>
             <div className="flex items-center space-x-6">
+                {onRefresh && (
+                    <button 
+                        onClick={handleRefresh}
+                        className="flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
+                        aria-label="Sync Data"
+                        disabled={isRefreshing}
+                    >
+                        <RefreshIcon className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin text-primary-600' : ''}`} />
+                        <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
+                    </button>
+                )}
+                <div className="h-6 w-px bg-gray-200"></div>
                 <button 
                     onClick={onChangeProfile} 
                     className="flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
