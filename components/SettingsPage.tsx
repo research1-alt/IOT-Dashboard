@@ -23,6 +23,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
     // Inspector State (Data Tab)
     const [rawServerData, setRawServerData] = useState<string | null>(null);
     const [isFetchingRaw, setIsFetchingRaw] = useState(false);
+    const [fetchTimestamp, setFetchTimestamp] = useState<string | null>(null);
 
     useEffect(() => {
         // Load fresh config on mount
@@ -110,6 +111,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
         if (!config.serverUrl) return;
         setIsFetchingRaw(true);
         setRawServerData(null);
+        setFetchTimestamp(null);
 
         try {
             const baseUrl = config.serverUrl.replace(/\/$/, "");
@@ -120,6 +122,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
             const response = await fetch(endpoint);
             const text = await response.text();
             
+            setFetchTimestamp(new Date().toLocaleTimeString());
+
             try {
                 const json = JSON.parse(text);
                 setRawServerData(JSON.stringify(json, null, 2));
@@ -208,7 +212,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                 onClick={() => setActiveTab('inspector')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'inspector' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
                             >
-                                Data Inspector
+                                Received Data
                             </button>
                             <button 
                                 onClick={() => setActiveTab('docs')}
@@ -384,84 +388,83 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                     <div className="mb-4">
                                         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                                             <CheckCircleIcon className="w-5 h-5 mr-2 text-green-600" />
-                                            Current App State
+                                            Processed Dashboard Data
                                         </h3>
                                         <p className="text-sm text-gray-600">
-                                            This is the data the Dashboard is actively using. 
-                                            {config.mode === 'server' ? " It should match your server data if connection was successful." : ""}
+                                            This is the data currently loaded into the Dashboard memory.
+                                            {config.mode === 'server' 
+                                                ? " It represents the last successful fetch from your server." 
+                                                : " It is currently reading from Local Storage."}
                                         </p>
                                     </div>
                                     
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Devices ({devices.length})</label>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Devices Payload ({devices.length})</label>
                                             <textarea 
                                                 readOnly
                                                 className="w-full h-64 p-3 text-xs font-mono bg-white border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                                                 value={JSON.stringify(devices, null, 2)}
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Members ({members.length})</label>
-                                            <textarea 
-                                                readOnly
-                                                className="w-full h-48 p-3 text-xs font-mono bg-white border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                                                value={JSON.stringify(members, null, 2)}
-                                            />
-                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Column 2: Live Server Check */}
-                                {config.mode === 'server' && (
-                                    <div>
-                                        <div className="mb-4">
-                                            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                                                <WifiIcon className="w-5 h-5 mr-2 text-blue-600" />
-                                                Live Server Check
-                                            </h3>
-                                            <p className="text-sm text-gray-600">
-                                                Want to be sure? Fetch raw data directly from your server right now, bypassing the app.
-                                            </p>
-                                        </div>
+                                <div>
+                                    <div className="mb-4">
+                                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                                            <WifiIcon className="w-5 h-5 mr-2 text-blue-600" />
+                                            Direct Server Response (Raw)
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            Fetch data directly from <strong>{displayUrl}</strong> right now, ignoring the app's current mode.
+                                            This helps verify what the server is actually sending.
+                                        </p>
+                                    </div>
 
-                                        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-                                            <button
-                                                onClick={handleFetchRawInspectorData}
-                                                disabled={isFetchingRaw}
-                                                className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                            >
-                                                {isFetchingRaw ? (
-                                                    <>
-                                                        <RefreshIcon className="w-4 h-4 mr-2 animate-spin" /> Fetching...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <WifiIcon className="w-4 h-4 mr-2" /> Fetch Raw Server Data
-                                                    </>
-                                                )}
-                                            </button>
+                                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+                                        <button
+                                            onClick={handleFetchRawInspectorData}
+                                            disabled={isFetchingRaw}
+                                            className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                        >
+                                            {isFetchingRaw ? (
+                                                <>
+                                                    <RefreshIcon className="w-4 h-4 mr-2 animate-spin" /> Fetching...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <WifiIcon className="w-4 h-4 mr-2" /> Fetch Raw Server Data
+                                                </>
+                                            )}
+                                        </button>
 
-                                            <div className="mt-4">
-                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
-                                                    Raw Response {rawServerData && '(Live)'}
+                                        <div className="mt-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">
+                                                    Raw JSON Response
                                                 </label>
-                                                {rawServerData ? (
-                                                    <textarea 
-                                                        readOnly
-                                                        className="w-full h-96 p-3 text-xs font-mono bg-gray-900 text-green-400 border border-gray-700 rounded-md"
-                                                        value={rawServerData}
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-96 bg-gray-100 border border-gray-200 rounded-md flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-                                                        <WifiIcon className="w-12 h-12 mb-2 opacity-20"/>
-                                                        <p className="text-sm">Click the button above to inspect raw JSON from <strong>{displayUrl}</strong></p>
-                                                    </div>
+                                                {fetchTimestamp && (
+                                                    <span className="text-xs text-gray-400">Fetched at {fetchTimestamp}</span>
                                                 )}
                                             </div>
+                                            
+                                            {rawServerData ? (
+                                                <textarea 
+                                                    readOnly
+                                                    className="w-full h-96 p-3 text-xs font-mono bg-gray-900 text-green-400 border border-gray-700 rounded-md"
+                                                    value={rawServerData}
+                                                />
+                                            ) : (
+                                                <div className="w-full h-96 bg-gray-100 border border-gray-200 rounded-md flex flex-col items-center justify-center text-gray-400 p-8 text-center">
+                                                    <WifiIcon className="w-12 h-12 mb-2 opacity-20"/>
+                                                    <p className="text-sm">Click the button above to inspect raw JSON from <strong>{displayUrl}</strong></p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </div>
                     )}
