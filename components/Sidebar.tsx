@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { DashboardIcon, ManageIcon, ReportsIcon, SettingsIcon, LogoutIcon, ConverterIcon, BillingIcon } from './Icons';
+import { DashboardIcon, ManageIcon, ReportsIcon, SettingsIcon, LogoutIcon, ConverterIcon, BillingIcon, ServerIcon } from './Icons';
 import { NavView, Member } from '../types';
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }> = ({ icon, label, active, onClick }) => (
@@ -44,6 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, onLogout, onNavigate, ac
                      <NavItem icon={<ConverterIcon className="w-6 h-6" />} label="Converter" active={activeView === 'converter'} onClick={() => onNavigate('converter')} />
                 )}
                 
+                <NavItem icon={<ServerIcon className="w-6 h-6" />} label="Server Monitor" active={activeView === 'server-monitor'} onClick={() => onNavigate('server-monitor')} />
+
                 {userRole === 'Admin' && (
                     <NavItem icon={<SettingsIcon className="w-6 h-6" />} label="Settings" active={activeView === 'settings'} onClick={() => onNavigate('settings')} />
                 )}

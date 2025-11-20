@@ -9,7 +9,31 @@ import ResetPasswordPage from './components/ResetPasswordPage';
 import StatusBar from './components/StatusBar';
 import { Member, UserRole, Device } from './types';
 import * as api from './services/api';
-import { LoadingSpinnerIcon } from './components/Icons';
+import { LoadingSpinnerIcon, CheckCircleIcon } from './components/Icons';
+
+// --- Toast Notification Component ---
+const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
+    return (
+        <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-lg shadow-xl flex items-center space-x-3 transition-all duration-500 animate-fade-in-up ${type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+            {type === 'success' ? (
+                <CheckCircleIcon className="w-6 h-6 text-white" />
+            ) : (
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+            )}
+            <div>
+                <p className="font-bold text-sm">{type === 'success' ? 'Data Received' : 'Error'}</p>
+                <p className="text-sm opacity-90">{message}</p>
+            </div>
+            <button onClick={onClose} className="ml-4 text-white hover:text-gray-200">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    );
+};
 
 // An enhanced, centered loading screen that can also display errors
 const LoadingScreen: React.FC<{ error?: string | null; onRetry?: () => void }> = ({ error, onRetry }) => (
@@ -60,14 +84,21 @@ const App: React.FC = () => {
     const [userToReset, setUserToReset] = useState<Member | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
+    // Toast State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     // --- Centralized State Management ---
     const [devices, setDevices] = useState<Device[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 4000);
+    };
+
     // --- Data Fetching Logic ---
-    const fetchSystemData = async () => {
+    const fetchSystemData = async (isManualRefresh = false) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -79,10 +110,20 @@ const App: React.FC = () => {
             
             setDevices(devicesData);
             setMembers(membersData);
+
+            // Notify user if data came from server
+            const config = api.getAppConfig();
+            if (config.mode === 'server') {
+                showToast(`Successfully received ${devicesData.length} devices from Server`, 'success');
+            } else if (isManualRefresh) {
+                showToast('Simulated data reloaded from Local Storage', 'success');
+            }
+
         } catch (error) {
             console.error("Failed to fetch data:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
             setError(errorMessage);
+            showToast("Failed to receive data from server", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -95,7 +136,7 @@ const App: React.FC = () => {
 
     // --- Manual Refresh Handler (Connected to "Sync Data" button) ---
     const handleManualRefresh = async () => {
-        await fetchSystemData();
+        await fetchSystemData(true);
     };
 
     // --- Data Persistence Effects (Only for Local Mode implicitly via api.ts check) ---
@@ -252,7 +293,7 @@ const App: React.FC = () => {
 
     // If critical error prevents data loading at start
     if (error && !currentUser) { 
-        return <LoadingScreen error={error} onRetry={fetchSystemData} />;
+        return <LoadingScreen error={error} onRetry={() => fetchSystemData(true)} />;
     }
 
     const renderAppContent = () => {
@@ -298,6 +339,7 @@ const App: React.FC = () => {
     
     return (
         <div className="relative min-h-screen">
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <div className="pb-8"> 
                 {renderAppContent()}
             </div>

@@ -13,6 +13,7 @@ import BillingPage from './BillingPage';
 import DeviceDetailView from './DeviceDetailView';
 import LiveVehicleDataView from './LiveVehicleDataView';
 import SettingsPage from './SettingsPage';
+import ServerDataPage from './ServerDataPage';
 import { ConverterPage } from './ConverterPage';
 import { TotalDevicesIcon, OnlineDevicesIcon, DistanceIcon, AlertsIcon } from './Icons';
 import { Device, NavView, Member, UserRole } from '../types';
@@ -92,6 +93,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         converter: 'CAN Log Decoder',
         billing: 'Billing & Finance',
         settings: 'Settings',
+        'server-monitor': 'Server Data Monitor',
     };
 
     const renderContent = () => {
@@ -158,6 +160,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 return <BillingPage />;
             case 'settings':
                  return <SettingsPage onConfigSave={onRefresh} devices={devices} members={members} />;
+            case 'server-monitor':
+                return <ServerDataPage />;
             default:
                 return null;
         }

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Device } from '../types';
 import { ArrowLeftIcon, EllipsisVerticalIcon, ReportsIcon } from './Icons';
@@ -8,10 +9,10 @@ interface DeviceDetailViewProps {
   onViewLiveData: () => void;
 }
 
-const InfoItem: React.FC<{ label: string; value?: string | number }> = ({ label, value }) => (
+const InfoItem: React.FC<{ label: string; value?: string | number; highlight?: boolean }> = ({ label, value, highlight }) => (
     <div>
         <p className="text-sm text-gray-500">{label}</p>
-        <p className="font-semibold text-primary-600">{value || '-'}</p>
+        <p className={`font-semibold ${highlight ? 'text-green-600' : 'text-primary-600'}`}>{value || '-'}</p>
     </div>
 );
 
@@ -91,7 +92,12 @@ const DeviceDetailView: React.FC<DeviceDetailViewProps> = ({ device, onBack, onV
                     <InfoItem label="Chassis No" value={device.chassisNo} />
                     <InfoItem label="Last Updated" value={device.lastUpdated} />
                     <InfoItem label="Battery UID" value={device.batteryUID} />
-                    <InfoItem label="CAN Timestamp" value={device.canTimestamp} />
+                    {/* Show Server Timestamp if available to prove server data source */}
+                    {device._serverTimestamp ? (
+                        <InfoItem label="Server Timestamp" value={new Date(device._serverTimestamp).toLocaleTimeString()} highlight />
+                    ) : (
+                        <InfoItem label="CAN Timestamp" value={device.canTimestamp} />
+                    )}
                     <InfoItem label="Vehicle Model" value={device.vehicleModel} />
                     <InfoItem label="GPS Timestamp" value={device.gpsTimestamp} />
                 </div>

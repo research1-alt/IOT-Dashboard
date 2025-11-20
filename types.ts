@@ -41,6 +41,7 @@ export interface Device {
   canTimestamp?: string;
   gpsTimestamp?: string;
   imageUrl?: string;
+  _serverTimestamp?: string; // Metadata to prove data came from server
 }
 
 
@@ -58,7 +59,7 @@ export interface LogFile {
   content: string;
 }
 
-export type NavView = 'dashboard' | 'manage' | 'reports' | 'converter' | 'billing' | 'settings';
+export type NavView = 'dashboard' | 'manage' | 'reports' | 'converter' | 'billing' | 'settings' | 'server-monitor';
 
 export type UserRole = 'Admin' | 'OEM Manager' | 'Finance Manager' | 'Fleet Manager' | 'Dealer' | 'Customer';
 
