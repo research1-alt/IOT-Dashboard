@@ -14,7 +14,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
     const [config, setConfig] = useState<AppConfig>(getAppConfig());
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-    const [activeTab, setActiveTab] = useState<'config' | 'inspector'>('config');
+    const [activeTab, setActiveTab] = useState<'config' | 'inspector' | 'docs'>('config');
     
     // Testing State (Configuration Tab)
     const [isTesting, setIsTesting] = useState(false);
@@ -49,7 +49,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
         setMessage(null);
 
         const baseUrl = config.serverUrl.replace(/\/$/, "");
-        const testEndpoint = `${baseUrl}/devices`;
+        // Handle relative vs absolute testing
+        const testEndpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/')
+            ? `${baseUrl}/devices`
+            : `/${baseUrl}/devices`;
 
         try {
             const response = await fetch(testEndpoint, {
@@ -110,8 +113,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
 
         try {
             const baseUrl = config.serverUrl.replace(/\/$/, "");
-            // Fetching devices as the primary sample
-            const response = await fetch(`${baseUrl}/devices`);
+             const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/')
+            ? `${baseUrl}/devices`
+            : `/${baseUrl}/devices`;
+
+            const response = await fetch(endpoint);
             const text = await response.text();
             
             try {
@@ -136,8 +142,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
             if (config.mode === 'server' && !config.serverUrl.trim()) {
                 throw new Error("Please enter a valid Server URL.");
             }
-            if (config.mode === 'server' && !config.serverUrl.startsWith('http')) {
-                throw new Error("Server URL must start with http:// or https://");
+            if (config.mode === 'server' && !config.serverUrl.startsWith('http') && !config.serverUrl.startsWith('/')) {
+                throw new Error("Server URL must start with http://, https://, or /");
             }
 
             saveAppConfig(config);
@@ -165,20 +171,33 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
     // Warning detection
     const showUrlWarning = config.mode === 'server' && config.serverUrl && (
         config.serverUrl.includes('google.com') || 
-        config.serverUrl.includes('drive') ||
-        !config.serverUrl.includes('api')
+        config.serverUrl.includes('drive')
     );
+
+    // Example JSON structure for docs
+    const exampleDeviceJson = `[
+  {
+    "id": "OSM01",
+    "status": "Driving",
+    "location": "New York, USA",
+    "ownerName": "John Doe",
+    "vehicleModel": "Rage+125",
+    "manufacturingYear": 2024,
+    "batteryUID": "BATT-001",
+    "imageUrl": "https://example.com/car.png"
+  }
+]`;
 
     return (
         <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                    <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
                             <p className="text-gray-500 mt-1">Manage configuration and view data.</p>
                         </div>
-                        <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+                        <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg self-start sm:self-auto">
                             <button 
                                 onClick={() => setActiveTab('config')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'config' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
@@ -191,10 +210,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                             >
                                 Data Inspector
                             </button>
+                            <button 
+                                onClick={() => setActiveTab('docs')}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'docs' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                            >
+                                API Docs
+                            </button>
                         </div>
                     </div>
                     
-                    {activeTab === 'config' ? (
+                    {activeTab === 'config' && (
                         <div className="p-8 space-y-8">
                             {/* Mode Selection */}
                             <div>
@@ -232,7 +257,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                         </div>
                                         <span className="font-bold text-gray-800">Remote Server</span>
                                         <p className="text-sm text-gray-500 mt-1 text-left">
-                                            Connect to a real backend API to fetch live fleet data.
+                                            Connect to a real backend API (e.g., Vercel, AWS) to fetch live fleet data.
                                         </p>
                                     </button>
                                 </div>
@@ -256,7 +281,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                                 value={config.serverUrl}
                                                 onChange={handleUrlChange}
                                                 className="flex-1 block w-full px-3 py-2 rounded-md border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                                                placeholder="http://localhost:3000/api"
+                                                placeholder="https://your-project.vercel.app/api"
                                             />
                                             <button
                                                 onClick={handleTestConnection}
@@ -271,6 +296,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                                 Test
                                             </button>
                                         </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            <strong>Tip:</strong> If using Vercel serverless functions in an <code>/api</code> folder, your URL likely ends with <code>/api</code>.
+                                        </p>
                                         {showUrlWarning && (
                                             <p className="text-yellow-600 text-xs mt-2 bg-yellow-50 p-2 rounded border border-yellow-200">
                                                 <strong>Warning:</strong> This looks like a website URL (e.g., Google Drive/AI Studio). Ensure you are using a valid API endpoint that returns JSON, not a web page.
@@ -332,7 +360,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    )}
+
+                    {activeTab === 'inspector' && (
                         <div className="p-8 bg-gray-50 min-h-[400px]">
                             {/* Active Source Indicator */}
                             <div className={`mb-6 p-4 rounded-lg border flex items-center ${config.mode === 'server' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-gray-100 border-gray-300 text-gray-700'}`}>
@@ -436,6 +466,65 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onConfigSave, devices, memb
                         </div>
                     )}
 
+                    {activeTab === 'docs' && (
+                        <div className="p-8 bg-white min-h-[400px] space-y-8">
+                            <div className="prose max-w-none text-gray-600">
+                                <h3 className="text-xl font-bold text-gray-800 mb-4">Integration Guide: How to Connect Your Website</h3>
+                                <p>
+                                    To use your own website as the backend server for this dashboard, your website needs to act as an API. 
+                                    This means it must respond to HTTP requests with JSON data in a specific format.
+                                </p>
+                                
+                                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-6">
+                                    <h4 className="font-bold text-yellow-800">Important Security Requirements</h4>
+                                    <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
+                                        <li><strong>CORS:</strong> Your server MUST allow Cross-Origin Resource Sharing (CORS). You must set the header <code>Access-Control-Allow-Origin: *</code> (or match this dashboard's domain).</li>
+                                        <li><strong>HTTPS:</strong> If this dashboard is running on HTTPS (secure), your server URL MUST also start with <code>https://</code>. Browsers block Mixed Content (HTTP) requests from secure pages.</li>
+                                        <li><strong>JSON:</strong> Your endpoints must return <code>Content-Type: application/json</code>.</li>
+                                    </ul>
+                                </div>
+
+                                <hr className="my-8 border-gray-200"/>
+
+                                <h4 className="text-lg font-bold text-gray-800 mb-2">Endpoint 1: GET /devices</h4>
+                                <p className="text-sm mb-4">This endpoint should return a list of all vehicles in your fleet.</p>
+                                <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+                                    <pre className="text-xs font-mono">{`// GET /devices
+// Response Body (Array of Objects):
+${exampleDeviceJson}`}</pre>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Fields: <code>id</code> (required, unique), <code>status</code> (Driving/Parked/Offline/Maintenance), 
+                                    and other optional details like <code>location</code>, <code>ownerName</code>, etc.
+                                </p>
+
+                                <hr className="my-8 border-gray-200"/>
+
+                                <h4 className="text-lg font-bold text-gray-800 mb-2">Endpoint 2: GET /members</h4>
+                                <p className="text-sm mb-4">This endpoint should return a list of users who can access the fleet.</p>
+                                <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+                                    <pre className="text-xs font-mono">{`// GET /members
+// Response Body:
+[
+  {
+    "id": "user-01",
+    "name": "Jane Admin",
+    "email": "jane@example.com",
+    "role": "Admin",
+    "assignedDevices": []
+  },
+  {
+    "id": "user-02",
+    "name": "Bob Driver",
+    "email": "bob@example.com",
+    "role": "Member",
+    "assignedDevices": ["OSM01"]
+  }
+]`}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </main>

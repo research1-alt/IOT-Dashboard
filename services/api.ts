@@ -4,9 +4,15 @@ import { mockDevices } from '../data/mock-devices';
 import { mockMembers } from '../data/mock-members';
 
 const CONFIG_KEY = 'fleetAppConfig';
+
+// Check for environment variable for server URL (Best practice for Vercel/Production)
+// Supports standard Create React App and Next.js naming conventions
+const ENV_SERVER_URL = process.env.REACT_APP_SERVER_URL || process.env.NEXT_PUBLIC_SERVER_URL;
+
 const DEFAULT_CONFIG: AppConfig = {
-    mode: 'local',
-    serverUrl: 'http://localhost:3000/api',
+    // If an env var is provided, default to server mode
+    mode: ENV_SERVER_URL ? 'server' : 'local',
+    serverUrl: ENV_SERVER_URL || 'http://localhost:3000/api',
 };
 
 // --- CONFIGURATION HELPERS ---
@@ -15,7 +21,9 @@ export const getAppConfig = (): AppConfig => {
     try {
         const stored = localStorage.getItem(CONFIG_KEY);
         if (stored) {
-            return JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            // Merge stored config with defaults to ensure robust fallback
+            return { ...DEFAULT_CONFIG, ...parsed };
         }
     } catch (e) {
         console.error("Failed to load config", e);
@@ -32,10 +40,9 @@ export const saveAppConfig = (config: AppConfig) => {
 const validateResponse = async (response: Response, endpoint: string) => {
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") === -1) {
-        // If the server sent HTML (like a 404 page or a login page), throw a specific error
         const text = await response.text();
         const preview = text.substring(0, 100);
-        throw new Error(`Expected JSON but received ${contentType}. You might be pointing to a website URL instead of an API endpoint. (Preview: ${preview}...)`);
+        throw new Error(`Expected JSON but received ${contentType}. (Preview: ${preview}...)`);
     }
 
     if (!response.ok) {
@@ -45,35 +52,38 @@ const validateResponse = async (response: Response, endpoint: string) => {
     return await response.json();
 };
 
-/**
- * Fetches the list of all devices.
- * If mode is 'local', uses localStorage/mock data.
- * If mode is 'server', fetches from the configured URL.
- */
 export const fetchDevices = async (): Promise<Device[]> => {
     const config = getAppConfig();
 
     if (config.mode === 'server') {
+        const baseUrl = config.serverUrl.replace(/\/$/, "");
+        // Handle relative URLs (like '/api') vs absolute URLs
+        const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
+            ? `${baseUrl}/devices` 
+            : `/${baseUrl}/devices`;
+
         try {
-            // Remove trailing slash if present to avoid double slashes
-            const baseUrl = config.serverUrl.replace(/\/$/, "");
-            const endpoint = `${baseUrl}/devices`;
+            console.log(`[API] Fetching devices from: ${endpoint}`);
             
             const response = await fetch(endpoint, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
 
             return await validateResponse(response, endpoint);
         } catch (error) {
             console.error("Server fetch failed:", error);
             let msg = error instanceof Error ? error.message : "Unknown error";
+            
             if (msg.includes("Failed to fetch")) {
-                msg = "Network Error: Could not connect. Check your Server URL and ensure CORS is enabled on your backend.";
+                msg = "Network Error. 1. Check CORS on backend. 2. Verify URL.";
+            } else if (msg.includes("404")) {
+                 msg = `Endpoint not found (404). URL: ${endpoint}`;
+            } else if (msg.includes("Expected JSON")) {
+                msg = `Invalid Response. URL '${endpoint}' returned HTML instead of JSON.`;
             }
-            throw new Error(`Failed to fetch data: ${msg}`);
+            
+            throw new Error(`Failed to fetch devices: ${msg}`);
         }
     }
 
@@ -82,27 +92,26 @@ export const fetchDevices = async (): Promise<Device[]> => {
         const storedDevices = localStorage.getItem('fleetDevices');
         if (storedDevices) {
             const parsed = JSON.parse(storedDevices);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
-            }
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch (e) {
-        console.warn('System: Failed to parse devices from local storage, using mock data.', e);
+        console.warn('System: Failed to parse devices from local storage.', e);
     }
     
     return mockDevices;
 };
 
-/**
- * Fetches the list of all members.
- */
 export const fetchMembers = async (): Promise<Member[]> => {
     const config = getAppConfig();
 
     if (config.mode === 'server') {
+        const baseUrl = config.serverUrl.replace(/\/$/, "");
+        const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
+            ? `${baseUrl}/members` 
+            : `/${baseUrl}/members`;
+        
         try {
-            const baseUrl = config.serverUrl.replace(/\/$/, "");
-            const endpoint = `${baseUrl}/members`;
+            console.log(`[API] Fetching members from: ${endpoint}`);
 
             const response = await fetch(endpoint, {
                 method: 'GET',
@@ -113,9 +122,10 @@ export const fetchMembers = async (): Promise<Member[]> => {
         } catch (error) {
              console.error("Server fetch members failed:", error);
              let msg = error instanceof Error ? error.message : "Unknown error";
-             if (msg.includes("Failed to fetch")) {
-                 msg = "Network Error: Could not connect.";
-             }
+             
+             if (msg.includes("Failed to fetch")) msg = "Network Error.";
+             else if (msg.includes("404")) msg = `Endpoint not found (404). URL: ${endpoint}`;
+
              throw new Error(`Failed to fetch members: ${msg}`);
         }
     }
@@ -125,12 +135,10 @@ export const fetchMembers = async (): Promise<Member[]> => {
         const storedMembers = localStorage.getItem('fleetMembers');
         if (storedMembers) {
             const parsed = JSON.parse(storedMembers);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
-            }
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch (e) {
-        console.warn('System: Failed to parse members from local storage, using mock data.', e);
+        console.warn('System: Failed to parse members from local storage.', e);
     }
 
     return mockMembers;
