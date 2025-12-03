@@ -22,7 +22,6 @@ export const getAppConfig = (): AppConfig => {
         const stored = localStorage.getItem(CONFIG_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
-            // Merge stored config with defaults to ensure robust fallback
             return { ...DEFAULT_CONFIG, ...parsed };
         }
     } catch (e) {
@@ -57,7 +56,6 @@ export const fetchDevices = async (): Promise<Device[]> => {
 
     if (config.mode === 'server') {
         const baseUrl = config.serverUrl.replace(/\/$/, "");
-        // Handle relative URLs (like '/api') vs absolute URLs
         const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
             ? `${baseUrl}/devices` 
             : `/${baseUrl}/devices`;
@@ -75,8 +73,14 @@ export const fetchDevices = async (): Promise<Device[]> => {
             console.error("Server fetch failed:", error);
             let msg = error instanceof Error ? error.message : "Unknown error";
             
-            if (msg.includes("Failed to fetch")) {
-                msg = "Network Error. 1. Check CORS on backend. 2. Verify URL.";
+            // Enhanced Error Diagnosis
+            const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+            const isHttpTarget = endpoint.startsWith('http:');
+
+            if (isHttps && isHttpTarget) {
+                 msg = "Mixed Content Error: Cannot connect to insecure HTTP server from HTTPS dashboard. Update Server URL to HTTPS or run dashboard locally.";
+            } else if (msg.includes("Failed to fetch")) {
+                msg = "Network Error. 1. Check CORS on backend. 2. Verify URL. 3. Check if server is running.";
             } else if (msg.includes("404")) {
                  msg = `Endpoint not found (404). URL: ${endpoint}`;
             } else if (msg.includes("Expected JSON")) {
@@ -123,8 +127,17 @@ export const fetchMembers = async (): Promise<Member[]> => {
              console.error("Server fetch members failed:", error);
              let msg = error instanceof Error ? error.message : "Unknown error";
              
-             if (msg.includes("Failed to fetch")) msg = "Network Error.";
-             else if (msg.includes("404")) msg = `Endpoint not found (404). URL: ${endpoint}`;
+             // Same diagnostics for members
+             const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+             const isHttpTarget = endpoint.startsWith('http:');
+
+             if (isHttps && isHttpTarget) {
+                 msg = "Mixed Content Error (HTTP vs HTTPS).";
+             } else if (msg.includes("Failed to fetch")) {
+                 msg = "Network Error.";
+             } else if (msg.includes("404")) {
+                 msg = `Endpoint not found (404).`;
+             }
 
              throw new Error(`Failed to fetch members: ${msg}`);
         }

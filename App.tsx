@@ -119,11 +119,34 @@ const App: React.FC = () => {
                 showToast('Simulated data reloaded from Local Storage', 'success');
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch data:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
-            setError(errorMessage);
-            showToast("Failed to receive data from server", 'error');
+            const config = api.getAppConfig();
+            
+            // --- AUTO-FALLBACK LOGIC ---
+            // If server connection fails, automatically switch to local mode so the app doesn't crash.
+            if (config.mode === 'server') {
+                console.warn("Server unreachable. Auto-switching to Local Mode.");
+                api.saveAppConfig({ ...config, mode: 'local' });
+                showToast("Server connection failed. Switched to Local Mode.", 'error');
+                
+                // Retry immediately with local mode
+                try {
+                    const [localDevices, localMembers] = await Promise.all([
+                        api.fetchDevices(),
+                        api.fetchMembers()
+                    ]);
+                    setDevices(localDevices);
+                    setMembers(localMembers);
+                    // Do not set global error, allow app to load
+                } catch (localErr) {
+                    setError("Critical System Failure: Could not load local data backup.");
+                }
+            } else {
+                const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
+                setError(errorMessage);
+                showToast("Failed to initialize system", 'error');
+            }
         } finally {
             setIsLoading(false);
         }

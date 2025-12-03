@@ -11,9 +11,13 @@ interface DeviceManagementPageProps {
 }
 
 // --- TYPE DEFINITIONS & CONSTANTS ---
-const statusColors: { [key in Device['status']]: string } = {
-    'Driving': 'bg-green-100 text-green-800', 'Parked': 'bg-blue-100 text-blue-800', 'Offline': 'bg-gray-200 text-gray-800', 'Maintenance': 'bg-yellow-100 text-yellow-800',
+const statusStyles: { [key in Device['status']]: { bg: string; text: string; dot: string } } = {
+    'Driving': { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500' },
+    'Parked': { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
+    'Offline': { bg: 'bg-gray-100', text: 'text-gray-800', dot: 'bg-gray-500' },
+    'Maintenance': { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500' },
 };
+
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 // --- MAIN COMPONENT ---
@@ -96,29 +100,37 @@ const DeviceManagementPage: React.FC<DeviceManagementPageProps> = ({ devices, on
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {devices.length > 0 ? devices.map((device) => (
-                            <tr key={device.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.id}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[device.status]}`}>{device.status}</span></td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    {device.logFileContent ? (
-                                        <div className="flex items-center space-x-2">
-                                            <CheckCircleIcon className="w-5 h-5 text-green-500" />
-                                            <span className="text-gray-700">Log Attached</span>
-                                            <label className="text-primary-600 hover:text-primary-800 text-xs font-medium cursor-pointer">
-                                                Replace
+                            {devices.length > 0 ? devices.map((device) => {
+                                const style = statusStyles[device.status] || statusStyles['Offline'];
+                                return (
+                                <tr key={device.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.id}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                                            <span className={`w-2 h-2 mr-1.5 rounded-full ${style.dot}`}></span>
+                                            {device.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        {device.logFileContent ? (
+                                            <div className="flex items-center space-x-2">
+                                                <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                                                <span className="text-gray-700">Log Attached</span>
+                                                <label className="text-primary-600 hover:text-primary-800 text-xs font-medium cursor-pointer">
+                                                    Replace
+                                                    <input type="file" className="sr-only" accept=".trc" onChange={(e) => handleLogFileUpload(e, device.id)} />
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <label className="px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-md hover:bg-gray-300 cursor-pointer">
+                                                Upload Log
                                                 <input type="file" className="sr-only" accept=".trc" onChange={(e) => handleLogFileUpload(e, device.id)} />
                                             </label>
-                                        </div>
-                                    ) : (
-                                        <label className="px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-md hover:bg-gray-300 cursor-pointer">
-                                            Upload Log
-                                            <input type="file" className="sr-only" accept=".trc" onChange={(e) => handleLogFileUpload(e, device.id)} />
-                                        </label>
-                                    )}
-                                </td>
-                            </tr>
-                            )) : (
+                                        )}
+                                    </td>
+                                </tr>
+                                )
+                            }) : (
                                 <tr><td colSpan={3} className="text-center py-10 text-gray-500">No devices registered yet.</td></tr>
                             )}
                         </tbody>
