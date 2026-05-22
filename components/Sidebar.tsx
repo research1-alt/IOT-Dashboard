@@ -1,11 +1,36 @@
 
 import React from 'react';
-import { DashboardIcon, ManageIcon, ReportsIcon, SettingsIcon, LogoutIcon, ConverterIcon, BillingIcon, ServerIcon } from './Icons';
+import { 
+    DashboardIcon, 
+    ManageIcon, 
+    ReportsIcon, 
+    SettingsIcon, 
+    LogoutIcon, 
+    ConverterIcon, 
+    BillingIcon, 
+    ServerIcon, 
+    MapPinIcon,
+    BatteryIcon,
+    DatabaseIcon,
+    TwinIcon,
+    LabIcon,
+    AlertsIcon
+} from './Icons';
 import { NavView, Member } from '../types';
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }> = ({ icon, label, active, onClick }) => (
-    <button onClick={onClick} disabled={!onClick} className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 text-left ${active ? 'bg-primary-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'} ${!onClick ? 'cursor-not-allowed opacity-60' : ''}`}>
-        {icon}
+    <button 
+        onClick={onClick} 
+        disabled={!onClick} 
+        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-left group ${
+            active 
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+        } ${!onClick ? 'cursor-not-allowed opacity-60' : ''}`}
+    >
+        <div className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-white'} transition-colors`}>
+            {icon}
+        </div>
         <span className="ml-4">{label}</span>
     </button>
 );
@@ -21,38 +46,36 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, onLogout, onNavigate, ac
     const userRole = currentUser.role;
 
     return (
-        <aside className="w-64 bg-sidebar text-white flex flex-col">
-            <div className="h-20 flex items-center justify-center border-b border-gray-700">
-                <h1 className="text-2xl font-bold tracking-wider">TELEMATICS</h1>
+        <aside className="w-72 bg-[#0f172a] text-white flex flex-col border-r border-slate-800 shadow-2xl z-20">
+            <div className="h-24 flex items-center px-8 border-b border-slate-800/50">
+                <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <DashboardIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <h1 className="text-xl font-bold tracking-tight text-white uppercase">OSM Telematics</h1>
+                </div>
             </div>
-            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-                <NavItem icon={<DashboardIcon className="w-6 h-6" />} label="Dashboard" active={activeView === 'dashboard'} onClick={() => onNavigate('dashboard')} />
-                
-                {(userRole === 'Admin' || userRole === 'Fleet Manager') && (
-                     <NavItem icon={<ManageIcon className="w-6 h-6" />} label="Manage" active={activeView === 'manage'} onClick={() => onNavigate('manage')} />
-                )}
+            <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto custom-scrollbar">
+                <div className="px-4 mb-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Insights</p>
+                </div>
+                <NavItem icon={<DashboardIcon className="w-5 h-5" />} label="Analytics" active={activeView === 'analytics'} onClick={() => onNavigate('analytics')} />
+                <NavItem icon={<MapPinIcon className="w-5 h-5" />} label="Live Tracking" active={activeView === 'live-map'} onClick={() => onNavigate('live-map')} />
+                <NavItem icon={<AlertsIcon className="w-5 h-5" />} label="Live Alerts" active={activeView === 'live-alerts'} onClick={() => onNavigate('live-alerts')} />
+                <NavItem icon={<BatteryIcon className="w-5 h-5" />} label="Battery Health" active={activeView === 'battery-health'} onClick={() => onNavigate('battery-health')} />
+                <NavItem icon={<DatabaseIcon className="w-5 h-5" />} label="Raw Data" active={activeView === 'raw-data'} onClick={() => onNavigate('raw-data')} />
+                <NavItem icon={<TwinIcon className="w-5 h-5" />} label="Vehicle Twin" active={activeView === 'vehicle-twin'} onClick={() => onNavigate('vehicle-twin')} />
+                <NavItem icon={<LabIcon className="w-5 h-5" />} label="DIY Lab" active={activeView === 'diy-lab'} onClick={() => onNavigate('diy-lab')} />
 
-                {(userRole === 'Admin' || userRole === 'Finance Manager') && (
-                    <NavItem icon={<BillingIcon className="w-6 h-6" />} label="Billing" active={activeView === 'billing'} onClick={() => onNavigate('billing')} />
-                )}
-               
-                {['Admin', 'OEM Manager', 'Fleet Manager', 'Dealer', 'Customer'].includes(userRole) && (
-                    <NavItem icon={<ReportsIcon className="w-6 h-6" />} label="Reports" active={activeView === 'reports'} onClick={() => onNavigate('reports')} />
-                )}
-
-                {['Admin', 'Fleet Manager'].includes(userRole) && (
-                     <NavItem icon={<ConverterIcon className="w-6 h-6" />} label="Converter" active={activeView === 'converter'} onClick={() => onNavigate('converter')} />
-                )}
-                
-                <NavItem icon={<ServerIcon className="w-6 h-6" />} label="Server Monitor" active={activeView === 'server-monitor'} onClick={() => onNavigate('server-monitor')} />
-
-                {userRole === 'Admin' && (
-                    <NavItem icon={<SettingsIcon className="w-6 h-6" />} label="Settings" active={activeView === 'settings'} onClick={() => onNavigate('settings')} />
-                )}
+                <div className="px-4 mt-6 mb-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Management</p>
+                </div>
+                <NavItem icon={<ManageIcon className="w-5 h-5" />} label="Fleets" active={activeView === 'manage'} onClick={() => onNavigate('manage')} />
+                <NavItem icon={<SettingsIcon className="w-5 h-5" />} label="Users" active={activeView === 'settings'} onClick={() => onNavigate('settings')} />
             </nav>
-            <div className="px-4 py-6 border-t border-gray-700">
-                 <button onClick={onLogout} className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white">
-                    <LogoutIcon className="w-6 h-6" />
+            <div className="p-6 border-t border-slate-800/50 bg-slate-900/30">
+                 <button onClick={onLogout} className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-all duration-200">
+                    <LogoutIcon className="w-5 h-5" />
                     <span className="ml-4">Logout</span>
                 </button>
             </div>

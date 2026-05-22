@@ -1,15 +1,25 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FleetStatusData } from '../types';
+import { Device, FleetStatusData } from '../types';
 
-const data: FleetStatusData[] = [
-    { name: 'Online', value: 1180, color: '#10B981' },
-    { name: 'Offline', value: 50, color: '#F59E0B' },
-    { name: 'Maintenance', value: 20, color: '#EF4444' },
-];
+interface FleetStatusChartProps {
+    devices: Device[];
+}
 
-const FleetStatusChart: React.FC = () => {
+const FleetStatusChart: React.FC<FleetStatusChartProps> = ({ devices }) => {
+    const onlineCount = devices.filter(d => d.status === 'Driving' || d.status === 'Parked').length;
+    const offlineCount = devices.filter(d => d.status === 'Offline').length;
+    const maintenanceCount = devices.filter(d => d.status === 'Maintenance').length;
+    const storedCount = devices.filter(d => d.status === 'Stored').length;
+
+    const data: FleetStatusData[] = [
+        { name: 'Online', value: onlineCount, color: '#10B981' },
+        { name: 'Offline', value: offlineCount, color: '#94A3B8' },
+        { name: 'Maintenance', value: maintenanceCount, color: '#F59E0B' },
+        { name: 'Stored', value: storedCount, color: '#6366F1' },
+    ];
+
     return (
         <ResponsiveContainer width="100%" height="100%">
             <PieChart>

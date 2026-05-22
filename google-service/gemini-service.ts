@@ -2,7 +2,7 @@
 
 import { FunctionDeclaration, Type } from "@google/genai";
 
-export const modelName = "gemini-2.5-flash";
+export const modelName = "gemini-3-flash-preview";
 
 export const canDataQueryTool: FunctionDeclaration = {
   name: 'query_can_data',

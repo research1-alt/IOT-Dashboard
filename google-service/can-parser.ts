@@ -10,6 +10,16 @@ const PCAN_LINE_REGEX_V2 = new RegExp(
     /^\s*\d+\s+([\d\.]+)\s+\w+\s+([0-9A-Fa-f]+)\s+(Rx|Tx)\s+(\d+)\s+((?:[0-9A-Fa-f]{2}\s*)*)$/
 );
 
+// Regex for the user's specific .trc format: e.g., "1) 1234.567 2026-04-06 09:55:12.488 18FF0E5A  8 FE 0C FC 0C FD 0C FD 0C   1059  28.326712018524177   77.3601420198636"
+const PCAN_LINE_REGEX_V3 = new RegExp(
+    /^\s*\d+\)\s+([\d\.]+)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s+([0-9A-Fa-f]+)\s+(\d+)\s+((?:[0-9A-Fa-f]{2}\s*)+)\s+(\d+)\s+([\d\.-]+)\s+([\d\.-]+)$/
+);
+
+// Regex for the user's specific .trc format WITHOUT relative timestamp: e.g., "1) 2026-04-06 09:55:12.488 18FF0E5A  8 FE 0C FC 0C FD 0C FD 0C   1059  28.326712018524177   77.3601420198636"
+const PCAN_LINE_REGEX_V4 = new RegExp(
+    /^\s*\d+\)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}\.\d{3})\s+([0-9A-Fa-f]+)\s+(\d+)\s+((?:[0-9A-Fa-f]{2}\s*)+)\s+(\d+)\s+([\d\.-]+)\s+([\d\.-]+)$/
+);
+
 /**
  * Parses the entire content of a CAN log file using a robust regex approach.
  * It intelligently skips headers and attempts to parse each valid data line,
@@ -38,6 +48,16 @@ export const parsePcanLog = (content: string): CANMessage[] => {
             formatVersion = 2;
         }
 
+        if (!match) {
+            match = trimmedLine.match(PCAN_LINE_REGEX_V3);
+            formatVersion = 3;
+        }
+
+        if (!match) {
+            match = trimmedLine.match(PCAN_LINE_REGEX_V4);
+            formatVersion = 4;
+        }
+
         if (match) {
             try {
                 let timestampStr, direction, rawId, dlcStr, dataStr;
@@ -45,9 +65,25 @@ export const parsePcanLog = (content: string): CANMessage[] => {
                 if (formatVersion === 1) {
                     // Groups for V1: 1:timestamp, 2:direction, 3:rawId, 4:dlc, 5:data
                     [, timestampStr, direction, rawId, dlcStr, dataStr] = match;
-                } else { // formatVersion === 2
+                } else if (formatVersion === 2) {
                     // Groups for V2: 1:timestamp, 2:rawId, 3:direction, 4:dlc, 5:data
                     [, timestampStr, rawId, direction, dlcStr, dataStr] = match;
+                } else if (formatVersion === 3) {
+                    // Groups for V3: 1:relativeMs, 2:date, 3:time, 4:rawId, 5:dlc, 6:data, 7:cycle, 8:lat, 9:lng
+                    const [, , date, time, id, dlc, data] = match;
+                    timestampStr = new Date(`${date}T${time}`).getTime().toString();
+                    rawId = id;
+                    direction = 'Rx'; // Default for V3
+                    dlcStr = dlc;
+                    dataStr = data;
+                } else { // formatVersion === 4
+                    // Groups for V4: 1:date, 2:time, 3:rawId, 4:dlc, 5:data, 6:cycle, 7:lat, 8:lng
+                    const [, date, time, id, dlc, data] = match;
+                    timestampStr = new Date(`${date}T${time}`).getTime().toString();
+                    rawId = id;
+                    direction = 'Rx'; // Default for V4
+                    dlcStr = dlc;
+                    dataStr = data;
                 }
 
                 const dlc = parseInt(dlcStr, 10);
@@ -64,7 +100,7 @@ export const parsePcanLog = (content: string): CANMessage[] => {
                 const id = rawId.replace(/x/i, '');
                 
                 messages.push({
-                    timestamp: parseFloat(timestampStr) / 1000, // Timestamps from file are in ms
+                    timestamp: formatVersion === 3 ? parseFloat(timestampStr) / 1000 : parseFloat(timestampStr) / 1000, 
                     id: `0x${id.toUpperCase()}`,
                     dlc: dlc,
                     data: dataBytes.map(byte => byte.toUpperCase()),

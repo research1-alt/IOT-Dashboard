@@ -9,9 +9,12 @@ interface HeaderProps {
     onChangeProfile: () => void;
     title: string;
     onRefresh?: () => Promise<void> | void;
+    lastSyncTime?: string | null;
+    isSidebarVisible: boolean;
+    toggleSidebar: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title, onRefresh }) => {
+const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title, onRefresh, lastSyncTime, isSidebarVisible, toggleSidebar }) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const handleRefresh = async () => {
@@ -26,47 +29,71 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onChangeProfile, title, on
     };
 
     return (
-        <header className="h-20 bg-card border-b border-gray-200 flex items-center justify-between px-8 flex-shrink-0">
-            <div>
-                <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
-                <p className="text-sm text-gray-500">Viewing as: {currentUser.role}</p>
-            </div>
-            <div className="flex items-center space-x-6">
-                {onRefresh && (
-                    <button 
-                        onClick={handleRefresh}
-                        className="flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
-                        aria-label="Sync Data"
-                        disabled={isRefreshing}
-                    >
-                        <RefreshIcon className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin text-primary-600' : ''}`} />
-                        <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
-                    </button>
-                )}
-                <div className="h-6 w-px bg-gray-200"></div>
+        <header className="h-24 bg-white border-b border-slate-200 flex items-center justify-between px-10 flex-shrink-0 z-10">
+            <div className="flex items-center space-x-4">
                 <button 
-                    onClick={onChangeProfile} 
-                    className="flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
-                    aria-label="Change Profile"
+                    onClick={toggleSidebar}
+                    className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all"
+                    aria-label={isSidebarVisible ? "Hide Sidebar" : "Show Sidebar"}
                 >
-                    <SwitchProfileIcon className="w-5 h-5 mr-2" />
-                    <span>Change Profile</span>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
                 </button>
-                <div className="h-6 w-px bg-gray-200"></div>
-                <div className="relative">
-                    <input type="text" placeholder="Search..." className="bg-gray-100 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary-500 w-56" />
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <SearchIcon className="w-5 h-5" />
+                <div className="flex flex-col">
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
+                    <div className="flex items-center space-x-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">System: Active • {currentUser.role}</p>
                     </div>
                 </div>
-                <button className="text-gray-500 hover:text-gray-700 relative">
-                    <BellIcon className="w-6 h-6" />
-                </button>
-                <div className="flex items-center space-x-3">
-                    <UserCircleIcon className="w-9 h-9 text-gray-400" />
-                    <div>
-                        <p className="text-sm font-semibold text-gray-800">{currentUser.name}</p>
-                        <p className="text-xs text-gray-500">{currentUser.email}</p>
+            </div>
+            
+            <div className="flex items-center space-x-8">
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-5 py-2.5 w-96 group focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                    <SearchIcon className="w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Search devices, alerts, or logs..." 
+                        className="bg-transparent border-none focus:ring-0 text-sm text-slate-700 placeholder:text-slate-400 w-full ml-3" 
+                    />
+                </div>
+
+                <div className="flex items-center space-x-4">
+                    {onRefresh && (
+                        <button 
+                            onClick={handleRefresh}
+                            className="flex items-center text-sm font-semibold text-slate-600 hover:text-blue-600 transition-all p-2.5 rounded-xl hover:bg-blue-50 group"
+                            aria-label="Sync Data"
+                            disabled={isRefreshing}
+                        >
+                            <RefreshIcon className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-blue-600' : 'text-slate-400 group-hover:text-blue-600'}`} />
+                        </button>
+                    )}
+                    
+                    <button 
+                        onClick={onChangeProfile} 
+                        className="flex items-center text-sm font-semibold text-slate-600 hover:text-blue-600 transition-all p-2.5 rounded-xl hover:bg-blue-50 group"
+                        aria-label="Change Profile"
+                    >
+                        <SwitchProfileIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600" />
+                    </button>
+
+                    <button className="text-slate-400 hover:text-blue-600 transition-all p-2.5 rounded-xl hover:bg-blue-50 relative group">
+                        <BellIcon className="w-6 h-6" />
+                        <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                    </button>
+                </div>
+
+                <div className="h-10 w-px bg-slate-200"></div>
+
+                <div className="flex items-center space-x-4 pl-2">
+                    <div className="flex flex-col items-end">
+                        <p className="text-sm font-bold text-slate-900">{currentUser.name}</p>
+                        <p className="text-[11px] font-medium text-slate-500">{currentUser.email}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 border-2 border-white">
+                        <span className="text-white font-bold text-lg">{currentUser.name.charAt(0)}</span>
                     </div>
                 </div>
             </div>

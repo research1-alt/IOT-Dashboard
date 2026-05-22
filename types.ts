@@ -24,7 +24,7 @@ export interface Alert {
 
 export interface Device {
   id: string;
-  status: 'Driving' | 'Parked' | 'Offline' | 'Maintenance';
+  status: 'Driving' | 'Parked' | 'Offline' | 'Maintenance' | 'Stored';
   location: string;
   logFileContent?: string; // Content of the attached CAN log file
   // New properties for detail view
@@ -42,6 +42,15 @@ export interface Device {
   gpsTimestamp?: string;
   imageUrl?: string;
   _serverTimestamp?: string; // Metadata to prove data came from server
+  // Telemetry fields from spreadsheet
+  speed?: string;
+  soc?: string;
+  fuel?: string;
+  battery?: string;
+  ignition?: 'On' | 'Off'; // Added ignition status
+  latitude?: number | null;
+  longitude?: number | null;
+  timestamp?: string;
 }
 
 
@@ -59,7 +68,22 @@ export interface LogFile {
   content: string;
 }
 
-export type NavView = 'dashboard' | 'manage' | 'reports' | 'converter' | 'billing' | 'settings' | 'server-monitor';
+export type NavView = 
+    | 'dashboard' 
+    | 'live-map' 
+    | 'live-alerts'
+    | 'battery-health'
+    | 'analytics'
+    | 'reports'
+    | 'raw-data'
+    | 'vehicle-twin'
+    | 'diy-lab'
+    | 'manage' 
+    | 'converter' 
+    | 'billing' 
+    | 'settings' 
+    | 'server-monitor' 
+    | 'service';
 
 export type UserRole = 'Admin' | 'OEM Manager' | 'Finance Manager' | 'Fleet Manager' | 'Dealer' | 'Customer';
 
@@ -84,6 +108,7 @@ export interface Signal {
   min: number;
   max: number;
   unit: string;
+  valueTable?: { [key: number]: string };
 }
 
 export interface Message {
@@ -113,4 +138,27 @@ export interface AppConfig {
     mode: DataSourceMode;
     serverUrl: string;
     apiKey?: string; // Optional for future use
+}
+
+// --- Telemetry Types ---
+export interface VehicleHeaderStats {
+  time: string;
+  obdStatus: string;
+  odometer: string;
+  speed: string;
+  ignition: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface CanDataItem {
+  label: string;
+  value: string;
+}
+
+export interface TelemetryData {
+    header: VehicleHeaderStats;
+    details: CanDataItem[];
+    rawMessages?: CANMessage[];
+    error?: string;
 }

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircleIcon, WifiIcon, CloudDownloadIcon } from './Icons';
+import { CheckCircleIcon, WifiIcon, DownloadIcon } from './Icons';
 import { getAppConfig } from '../services/api';
 
 const StatusBar: React.FC = () => {
@@ -37,7 +37,7 @@ const StatusBar: React.FC = () => {
                 <div className="h-4 w-px bg-gray-600"></div>
                 {/* Data Mode */}
                 <div className="flex items-center text-gray-400 space-x-2">
-                    {mode === 'local' ? <CloudDownloadIcon className="w-4 h-4"/> : <WifiIcon className="w-4 h-4"/>}
+                    {mode === 'local' ? <DownloadIcon className="w-4 h-4"/> : <WifiIcon className="w-4 h-4"/>}
                     <span>Mode:</span>
                     <span className="font-semibold text-white uppercase">{mode}</span>
                     {mode === 'server' && (

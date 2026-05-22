@@ -39,10 +39,17 @@ const extractSignalValue = (data: Uint8Array, signal: Signal): number => {
     return rawValue * signal.scale + signal.offset;
 }
 
-const decodeMessages = (messages: CANMessage[], matrix: CanMatrix): CANMessage[] => {
+export const decodeMessages = (messages: CANMessage[], matrix: CanMatrix): CANMessage[] => {
     return messages.map(message => {
-        const messageIdDecimal = parseInt(message.id, 16).toString();
+        // Ensure ID is parsed correctly whether it has '0x' or not
+        const hexId = message.id.startsWith('0x') ? message.id.substring(2) : message.id;
+        const id = parseInt(hexId, 16);
+        
+        // For extended IDs, DBC files often use ID | 0x80000000
+        const messageIdDecimal = (id > 0x7FF ? (id | 0x80000000) >>> 0 : id).toString();
         const definition = matrix[messageIdDecimal];
+
+        console.log(`Debug: Decoding message ID: ${message.id} (hex: ${hexId}, decimal: ${id}), matched ID: ${messageIdDecimal}, definition found: ${!!definition}`);
 
         if (!definition) {
             return message;
@@ -54,7 +61,12 @@ const decodeMessages = (messages: CANMessage[], matrix: CanMatrix): CANMessage[]
         for (const signalName in definition.signals) {
             const signal = definition.signals[signalName];
             const value = extractSignalValue(dataBytes, signal);
-            decodedSignals[signal.name] = parseFloat(value.toPrecision(10));
+            
+            if (signal.valueTable && signal.valueTable[value] !== undefined) {
+                decodedSignals[signal.name] = signal.valueTable[value];
+            } else {
+                decodedSignals[signal.name] = parseFloat(value.toPrecision(10));
+            }
         }
 
         return { ...message, name: definition.name, decoded: decodedSignals };

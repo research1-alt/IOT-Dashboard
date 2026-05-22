@@ -15,7 +15,7 @@ export const mockMembers: Member[] = [
     email: 'olivia.chen@example.com', 
     password: 'password123',
     role: 'Member', 
-    assignedDevices: ['OSM01'] 
+    assignedDevices: [] 
   },
   { 
     id: 'user-member-03', 
@@ -31,7 +31,7 @@ export const mockMembers: Member[] = [
     email: 'kenji.tanaka@oem.com', 
     password: 'password123',
     role: 'Member', // Role is selected after login
-    assignedDevices: ['OSM01'] 
+    assignedDevices: [] 
   },
   { 
     id: 'user-finance-05', 

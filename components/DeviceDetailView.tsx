@@ -92,6 +92,13 @@ const DeviceDetailView: React.FC<DeviceDetailViewProps> = ({ device, onBack, onV
                     <InfoItem label="Chassis No" value={device.chassisNo} />
                     <InfoItem label="Last Updated" value={device.lastUpdated} />
                     <InfoItem label="Battery UID" value={device.batteryUID} />
+                    <InfoItem label="Speed" value={device.speed} highlight />
+                    <InfoItem label="SOC" value={device.soc} highlight />
+                    <InfoItem label="Fuel" value={device.fuel} highlight />
+                    <InfoItem label="Battery" value={device.battery} highlight />
+                    <InfoItem label="Latitude" value={device.latitude} />
+                    <InfoItem label="Longitude" value={device.longitude} />
+                    <InfoItem label="Spreadsheet Time" value={device.timestamp} />
                     {/* Show Server Timestamp if available to prove server data source */}
                     {device._serverTimestamp ? (
                         <InfoItem label="Server Timestamp" value={new Date(device._serverTimestamp).toLocaleTimeString()} highlight />

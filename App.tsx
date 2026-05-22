@@ -91,6 +91,7 @@ const App: React.FC = () => {
     const [devices, setDevices] = useState<Device[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type });
@@ -102,51 +103,50 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            // Fetch data from the API service layer.
-            const [devicesData, membersData] = await Promise.all([
-                api.fetchDevices(),
-                api.fetchMembers()
-            ]);
-            
-            setDevices(devicesData);
-            setMembers(membersData);
+            // Fetch members first as it's now local and critical for login
+            try {
+                const membersData = await api.fetchMembers();
+                setMembers(membersData);
+                // Allow login even if devices are still loading
+                setIsLoading(false);
+            } catch (memberError) {
+                console.error("Failed to fetch members:", memberError);
+                // Fallback to empty array if even local fetch fails
+                setMembers([]);
+                setIsLoading(false);
+            }
 
-            // Notify user if data came from server
-            const config = api.getAppConfig();
-            if (config.mode === 'server') {
-                showToast(`Successfully received ${devicesData.length} devices from Server`, 'success');
-            } else if (isManualRefresh) {
-                showToast('Simulated data reloaded from Local Storage', 'success');
+            // Fetch devices separately so failure doesn't block the whole app
+            try {
+                const devicesData = await api.fetchDevices();
+                setDevices(devicesData);
+                setLastSyncTime(new Date().toLocaleTimeString());
+
+                // Notify user if data came from server
+                const config = api.getAppConfig();
+                if (config.mode === 'server') {
+                    showToast(`Successfully received ${devicesData.length} devices from Server`, 'success');
+                } else if (isManualRefresh) {
+                    showToast('Simulated data reloaded from Local Storage', 'success');
+                }
+            } catch (deviceError: any) {
+                console.error("Failed to fetch devices:", deviceError);
+                const config = api.getAppConfig();
+                if (config.mode === 'server') {
+                    const errorMessage = deviceError instanceof Error ? deviceError.message : "Server connection failed.";
+                    // We don't set global error here to allow login, but we show a toast
+                    showToast(errorMessage, 'error');
+                    // If it's the initial load and it failed, we might want to show the error screen 
+                    // ONLY if we have no devices at all and it's a server mode
+                    if (devices.length === 0 && !isManualRefresh) {
+                        // setError(errorMessage); // Still allowing login even if devices fail
+                    }
+                }
             }
 
         } catch (error: any) {
-            console.error("Failed to fetch data:", error);
-            const config = api.getAppConfig();
-            
-            // --- AUTO-FALLBACK LOGIC ---
-            // If server connection fails, automatically switch to local mode so the app doesn't crash.
-            if (config.mode === 'server') {
-                console.warn("Server unreachable. Auto-switching to Local Mode.");
-                api.saveAppConfig({ ...config, mode: 'local' });
-                showToast("Server connection failed. Switched to Local Mode.", 'error');
-                
-                // Retry immediately with local mode
-                try {
-                    const [localDevices, localMembers] = await Promise.all([
-                        api.fetchDevices(),
-                        api.fetchMembers()
-                    ]);
-                    setDevices(localDevices);
-                    setMembers(localMembers);
-                    // Do not set global error, allow app to load
-                } catch (localErr) {
-                    setError("Critical System Failure: Could not load local data backup.");
-                }
-            } else {
-                const errorMessage = error instanceof Error ? error.message : "An unknown system error occurred.";
-                setError(errorMessage);
-                showToast("Failed to initialize system", 'error');
-            }
+            console.error("General initialization error:", error);
+            setError("An unknown system error occurred during initialization.");
         } finally {
             setIsLoading(false);
         }
@@ -155,6 +155,27 @@ const App: React.FC = () => {
     // --- Initial Load ---
     useEffect(() => {
         fetchSystemData();
+        
+        // Auto-poll for new data every 30 seconds if in server mode
+        let isFetching = false;
+        const interval = setInterval(async () => {
+            if (isFetching) return;
+            
+            const config = api.getAppConfig();
+            if (config.mode === 'server') {
+                isFetching = true;
+                try {
+                    const data = await api.fetchDevices();
+                    setDevices(data);
+                } catch (e) {
+                    // Silently fail
+                } finally {
+                    isFetching = false;
+                }
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
     }, []); 
 
     // --- Manual Refresh Handler (Connected to "Sync Data" button) ---
@@ -356,6 +377,7 @@ const App: React.FC = () => {
                 onUpdateMemberRole={handleUpdateMemberRole}
                 onUpdateMemberAssignments={handleUpdateMemberAssignments}
                 onRefresh={handleManualRefresh}
+                lastSyncTime={lastSyncTime}
             />
         );
     }

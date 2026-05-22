@@ -9,6 +9,15 @@ interface DiagnosticResult {
     details: string;
 }
 
+// Helper to build endpoint URLs (copied from api.ts for standalone use in monitor)
+const getEndpointUrl = (baseUrl: string, action: string): string => {
+    if (baseUrl.includes('script.google.com')) {
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        return `${baseUrl}${separator}action=${action}`;
+    }
+    return `${baseUrl}/${action}`;
+};
+
 const ServerDataPage: React.FC = () => {
     const [config, setConfig] = useState(getAppConfig());
     const [rawData, setRawData] = useState<string | null>(null);
@@ -16,6 +25,7 @@ const ServerDataPage: React.FC = () => {
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isAutoRefresh, setIsAutoRefresh] = useState(false);
+    const [viewMode, setViewMode] = useState<'devices' | 'telemetry'>('devices');
     const autoRefreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
     
     // Editing State
@@ -34,21 +44,24 @@ const ServerDataPage: React.FC = () => {
         }
 
         setIsFetching(true);
-        // Do not clear previous data on refresh to prevent flickering
         setError(null);
         
-        const baseUrl = config.serverUrl.replace(/\/$/, "");
-        const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
-            ? `${baseUrl}/devices` 
-            : `/${baseUrl}/devices`;
+        const baseUrl = config.serverUrl.trim();
+        let endpoint = getEndpointUrl(baseUrl, viewMode);
+        
+        // For telemetry, we need a device ID. Use a default or the first one if available.
+        if (viewMode === 'telemetry') {
+            endpoint += '&deviceId=OSM 01';
+        }
 
         try {
-            const response = await fetch(endpoint);
+            const response = await fetch(endpoint, {
+                headers: { 'Accept': 'application/json, */*' }
+            });
             const text = await response.text();
             
             try {
                 const json = JSON.parse(text);
-                // Pretty print JSON
                 setRawData(JSON.stringify(json, null, 2));
             } catch {
                 setRawData(text);
@@ -65,7 +78,7 @@ const ServerDataPage: React.FC = () => {
     useEffect(() => {
         fetchLiveData();
         return () => stopAutoRefresh();
-    }, [config]); // Refetch if config changes
+    }, [config, viewMode]); // Refetch if config or viewMode changes
 
     const startAutoRefresh = () => {
         setIsAutoRefresh(true);
@@ -86,6 +99,62 @@ const ServerDataPage: React.FC = () => {
             stopAutoRefresh();
         } else {
             startAutoRefresh();
+        }
+    };
+
+    const testReceiver = async () => {
+        const baseUrl = config.serverUrl.replace(/\/$/, "");
+        const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
+            ? `${baseUrl}/receive` 
+            : `/${baseUrl}/receive`;
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    vehicleId: "TEST-999",
+                    status: "Driving",
+                    speed: 45,
+                    fuelLevel: 88,
+                    latitude: 28.6139,
+                    longitude: 77.2090,
+                    message: "Test data from Dashboard",
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (response.ok) {
+                alert("Test data sent successfully! Switch to 'Receive API' to see it.");
+                if (viewMode === 'receive') fetchLiveData();
+            } else {
+                alert(`Failed to send test data: ${response.status} ${response.statusText}`);
+            }
+        } catch (err: any) {
+            alert(`Error sending test data: ${err.message}`);
+        }
+    };
+
+    const clearExternalData = async () => {
+        const baseUrl = config.serverUrl.replace(/\/$/, "");
+        const endpoint = baseUrl.startsWith('http') || baseUrl.startsWith('/') 
+            ? `${baseUrl}/receive` 
+            : `/${baseUrl}/receive`;
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                alert("External data cleared successfully!");
+                setRawData(null);
+                fetchLiveData();
+            } else {
+                alert(`Failed to clear data: ${response.status}`);
+            }
+        } catch (err: any) {
+            alert(`Error: ${err.message}`);
         }
     };
 
@@ -194,6 +263,21 @@ const ServerDataPage: React.FC = () => {
                         <p className="text-gray-600 mt-2">
                             View live data streaming from your backend server.
                         </p>
+                    </div>
+                    
+                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                        <button 
+                            onClick={() => setViewMode('devices')}
+                            className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${viewMode === 'devices' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                            Devices API
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('telemetry')}
+                            className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${viewMode === 'telemetry' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                            Telemetry API
+                        </button>
                     </div>
                 </div>
 
@@ -336,7 +420,7 @@ const ServerDataPage: React.FC = () => {
                 <div className="bg-gray-900 rounded-xl shadow-lg overflow-hidden border border-gray-700 flex flex-col h-[600px]">
                     <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
                         <div className="flex items-center">
-                            <span className="text-gray-300 text-xs font-bold uppercase tracking-wider">Received Payload</span>
+                            <span className="text-gray-300 text-xs font-bold uppercase tracking-wider">Server Response Data</span>
                         </div>
                         {lastUpdated && (
                             <span className="text-xs text-green-400 font-mono">

@@ -16,6 +16,7 @@ const statusStyles: { [key in Device['status']]: { bg: string; text: string; dot
     'Parked': { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
     'Offline': { bg: 'bg-gray-100', text: 'text-gray-800', dot: 'bg-gray-500' },
     'Maintenance': { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500' },
+    'Stored': { bg: 'bg-indigo-100', text: 'text-indigo-800', dot: 'bg-indigo-500' },
 };
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
